@@ -1,7 +1,3 @@
-"""
-supabase client instance for database interactions
-"""
-
 from supabase import acreate_client, AsyncClient
 import os
 from dotenv import load_dotenv
