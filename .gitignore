@@ -6,7 +6,7 @@ env/
 
 .vscode/
 
-./services/api/src/__pycache__/
-./services/api/src/db/__pycache__/
-./services/api/src/schema/__pycache__/
-./services/api/src/routes/__pycache__/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
