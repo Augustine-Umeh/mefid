@@ -2,7 +2,7 @@
 supabase client instance for database interactions
 """
 
-from supabase import acreate_client, Client
+from supabase import acreate_client, AsyncClient
 import os
 from dotenv import load_dotenv
 
@@ -13,5 +13,6 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ADMIN_API_KEY = os.getenv("SUPABASE_ADMIN_API_KEY")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-# supabase client instance
-supabase_client: Client = acreate_client(SUPABASE_DB_URL, SUPABASE_SERVICE_ROLE_KEY)
+async def create_supabase() -> AsyncClient:
+  supabase_client: AsyncClient = await acreate_client(SUPABASE_DB_URL, SUPABASE_SERVICE_ROLE_KEY)
+  return supabase_client

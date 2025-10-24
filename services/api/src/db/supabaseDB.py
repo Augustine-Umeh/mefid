@@ -1,10 +1,10 @@
 from typing import List, Optional
-from client import supabase_client
-from models import Media, Frame, FrameMetadata, SearchQuery, Embedding
+from supabase import AsyncClient
+from schema.models import Media, MediaCreate, Frame, FrameCreate, FrameMetadata, FrameMetadataCreate, SearchQuery, SearchQueryCreate, Embedding, EmbeddingCreate
 
 
 class SupabaseDB:
-    def __init__(self):
+    def __init__(self, supabase_client: AsyncClient):
         self.client = supabase_client
     
     # ========== Media CRUD operations ==========
@@ -16,8 +16,8 @@ class SupabaseDB:
         response = await self.client.table("media").select('*').eq('id', media_id).execute()
         return response.data[0] if response.data else None
     
-    async def insert_media(self, media_data: Media) -> dict:
-        response = await self.client.table("media").insert(media_data.to_dict()).execute()
+    async def insert_media(self, media_data: MediaCreate) -> dict:
+        response = await self.client.table("media").insert(media_data.model_dump()).execute()
         return response.data[0] if response.data else None
     
     async def update_media(self, media_id: int, update_data: dict) -> dict:
@@ -40,8 +40,8 @@ class SupabaseDB:
         response = await self.client.table("frames").select('*').eq('id', frame_id).execute()
         return response.data[0] if response.data else None
     
-    async def insert_frame(self, frame_data: Frame) -> dict:
-        response = await self.client.table("frames").insert(frame_data.to_dict()).execute()
+    async def insert_frame(self, frame_data: FrameCreate) -> dict:
+        response = await self.client.table("frames").insert(frame_data.model_dump()).execute()
         return response.data[0] if response.data else None
     
     async def update_frame(self, frame_id: int, update_data: dict) -> dict:
@@ -64,8 +64,8 @@ class SupabaseDB:
         response = await self.client.table("frame_metadata").select('*').eq('id', metadata_id).execute()
         return response.data[0] if response.data else None
     
-    async def insert_frame_metadata(self, metadata_data: FrameMetadata) -> dict:
-        response = await self.client.table("frame_metadata").insert(metadata_data.to_dict()).execute()
+    async def insert_frame_metadata(self, metadata_data: FrameMetadataCreate) -> dict:
+        response = await self.client.table("frame_metadata").insert(metadata_data.model_dump()).execute()
         return response.data[0] if response.data else None
     
     async def update_frame_metadata(self, metadata_id: int, update_data: dict) -> dict:
@@ -84,8 +84,8 @@ class SupabaseDB:
         response = await self.client.table("search_queries").select('*').eq('id', query_id).execute()
         return response.data[0] if response.data else None
     
-    async def insert_search_query(self, query_data: SearchQuery) -> dict:
-        response = await self.client.table("search_queries").insert(query_data.to_dict()).execute()
+    async def insert_search_query(self, query_data: SearchQueryCreate) -> dict:
+        response = await self.client.table("search_queries").insert(query_data.model_dump()).execute()
         return response.data[0] if response.data else None
     
     async def update_search_query(self, query_id: int, update_data: dict) -> dict:
@@ -108,8 +108,8 @@ class SupabaseDB:
         response = await self.client.table("embeddings").select('*').eq('frame_id', frame_id).execute()
         return response.data
     
-    async def insert_embedding(self, embedding_data: Embedding) -> dict:
-        response = await self.client.table("embeddings").insert(embedding_data.to_dict()).execute()
+    async def insert_embedding(self, embedding_data: EmbeddingCreate) -> dict:
+        response = await self.client.table("embeddings").insert(embedding_data.model_dump()).execute()
         return response.data[0] if response.data else None
     
     async def update_embedding(self, embedding_id: int, update_data: dict) -> dict:
