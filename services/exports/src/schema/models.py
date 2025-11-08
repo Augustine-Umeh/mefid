@@ -2,6 +2,9 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from typing import Optional, List, Dict
 from pydantic import BaseModel
+from .constants import MediaType
+from pydantic import BaseModel, Field, HttpUrl
+from fastapi import UploadFile, File, Form
 
 
 # ==============================================
@@ -31,7 +34,8 @@ class Media(BaseSchema):
     title: Optional[str] = None
     description: Optional[str] = None
     source_url: Optional[str] = None
-    media_type: Optional[str] = None
+    media_type: Optional[MediaType] = None
+    file_name: Optional[str] = None
     duration_seconds: Optional[float] = None
     storage_path: Optional[str] = None
     status: Optional[str] = None
@@ -77,6 +81,20 @@ class Embedding(BaseSchema):
     faiss_index_path: Optional[str] = None
 
 
+@dataclass
+class Indexes(BaseSchema):
+    """Indexes model representing an index for embeddings."""
+    name: Optional[str] = None
+    version: Optional[int] = None
+    description: Optional[str] = None
+    index_path: Optional[str] = None
+    metadata_path: Optional[str] = None
+    num_vectors: Optional[int] = None
+    vector_dimension: Optional[int] = None
+    model_name: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    status: Optional[str] = None
+
 # ==============================================
 # Pydantic Models (API schemas / validation layer)
 # ==============================================
@@ -84,7 +102,8 @@ class MediaCreate(BaseModel):
     """Model for creating a new media item."""
     title: str
     source_url: str
-    media_type: str
+    file_name: str
+    media_type: MediaType
     description: Optional[str] = None
     duration_seconds: Optional[float] = None
     storage_path: Optional[str] = None
@@ -124,3 +143,37 @@ class EmbeddingCreate(BaseModel):
     model_name: str
     vector: List[float]
     faiss_index_path: str
+    
+    
+class IndexesCreate(BaseModel):
+    """Model for creating a new index for embeddings."""
+    name: str
+    version: int
+    description: Optional[str] = None
+    index_path: str
+    metadata_path: str
+    num_vectors: int
+    vector_dimension: int
+    model_name: str
+    status: Optional[str] = "building"
+
+    
+class UploadRequest(BaseModel):
+    image_query: Optional[UploadFile] = File(None, description="Image file for search.")
+    video_query: Optional[UploadFile] = Field(None, description="Video file for search.")
+    media_type: MediaType = Field(..., description="Type of media being uploaded.")
+    title: Optional[str] = Field(None, description="Title of the media.")
+    filename: Optional[str] = Field(None, description="Name of the media file.")
+    description: Optional[str] = Field(None, description="Description of the media.")
+    duration_seconds: Optional[float] = Field(None, description="Duration of the media in seconds.")
+    source_url: Optional[HttpUrl] = Field(None, description="Original source URL of the media.")
+
+
+class SearchRequest(BaseModel):
+    text_query: Optional[str] = Field(None, description="Text description for search.")
+    image_query: Optional[UploadFile] = Field(None, description="Image file for search.")
+    video_query: Optional[UploadFile] = Field(None, description="Video file for search.")
+    media_type: MediaType = Field(
+        None,
+        description="Type of media to search against, e.g., 'image', 'video', 'all'",
+    )

@@ -1,0 +1,18 @@
+[project]
+name = "exports"
+version = "0.1.0"
+description = "Shared DTOs, models, db clients and constants for all Mefid services"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Dependencies needed by your shared models
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
