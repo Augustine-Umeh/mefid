@@ -152,12 +152,3 @@ logger.debug("Inserted frames to Supabase")
 | **Indexer Service**    | `schemas.models`, `utils.logger`, `db_clients.supabaseDB`                       | Reads metadata from Supabase to populate FAISS index; logs search and indexing processes                      |
 | **Ingest Service**     | `db_clients.minioDB`, `schemas.constants`, `utils.logger`                       | Retrieves raw files from MinIO and triggers ingestion workflows                                               |
 | **Frontend (via API)** | —                                                                               | Does not import `exports` directly, but benefits from consistent schema definitions used in backend responses |
-
----
-
-## Notes
-
-* The `exports` package should remain **lightweight and dependency-agnostic**.
-* Avoid adding service-specific logic — keep it generic and reusable.
-* All services importing `exports` share the same base logging, model, and DB client setup.
-
