@@ -1,0 +1,143 @@
+services:
+    api:
+        build:
+            context: .
+            dockerfile: services/api/Dockerfile
+        container_name: mefid-api
+        ports:
+            - "8000:8000"
+        environment:
+            - MEDIA_PROCESSOR_URL=${MEDIA_PROCESSOR_SERVICE}
+            - EMBEDDER_URL=${EMBEDDER_SERVICE}
+            - INDEXER_URL=${INDEXER_SERVICE}
+            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+            - MINIO_USE_SSL=${MINIO_USE_SSL}
+            - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+        depends_on:
+            - media_processor
+            - embedder
+            - indexer
+            - minio
+        volumes:
+            - ./services/api/src:/app/src  # Hot reload for development
+        networks:
+            - mefid-network
+
+    media_processor:
+        build:
+            context: .
+            dockerfile: services/media_processor/Dockerfile
+        container_name: mefid-media-processor
+        ports:
+            - "8001:8001"
+        environment:
+            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+            - MINIO_USE_SSL=${MINIO_USE_SSL}
+            - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_ANON_KEY}
+            - FRAME_INTERVAL=${FRAME_INTERVAL}
+            - SCENE_THRESHOLD=${SCENE_THRESHOLD}
+        depends_on:
+            - minio
+        volumes:
+            - ./services/media_processor/src:/app/src  # Hot reload
+            - /tmp/videos:/tmp/videos  # Shared temp storage
+        networks:
+            - mefid-network
+
+    embedder:
+        build:
+            context: .
+            dockerfile: services/embedder/Dockerfile
+        container_name: mefid-embedder
+        ports:
+            - "8002:8002"
+        environment:
+            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+            - MINIO_USE_SSL=${MINIO_USE_SSL}
+            - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_ANON_KEY}
+            - CLIP_MODEL_NAME=${CLIP_MODEL}
+            - TRANSFORMERS_CACHE=${TRANSFORMERS_CACHE}
+        depends_on:
+            - minio
+        volumes:
+            - ./services/embedder/src:/app/src  # Hot reload
+            - embedder_cache:/app/model_cache  # Persist model cache
+        # Uncomment for GPU support
+        # deploy:
+        #   resources:
+        #     reservations:
+        #       devices:
+        #         - driver: nvidia
+        #           count: 1
+        #           capabilities: [gpu]
+        networks:
+            - mefid-network
+
+    indexer:
+        build:
+            context: .
+            dockerfile: services/indexer/Dockerfile
+        container_name: mefid-indexer
+        ports:
+            - "8003:8003"
+        environment:
+            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+            - MINIO_USE_SSL=${MINIO_USE_SSL}
+            - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_ANON_KEY}
+            - FAISS_INDEX_PATH=${FAISS_INDEX_PATH}
+        depends_on:
+            - minio
+        volumes:
+            - ./services/indexer/src:/app/src  # Hot reload
+            - faiss_data:/app/data  # Persist FAISS index
+        networks:
+            - mefid-network
+
+    minio:
+        image: minio/minio:latest
+        container_name: mefid-minio
+        ports:
+            - "9000:9000"
+            - "9001:9001"  # MinIO Console
+        environment:
+            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+            - MINIO_USE_SSL=${MINIO_USE_SSL}
+        command: server /data --console-address ":9001"
+        volumes:
+            - minio_data:/data
+        networks:
+            - mefid-network
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://${MINIO_ENDPOINT}/minio/health/live"]
+            interval: 30s
+            timeout: 20s
+            retries: 3
+
+volumes:
+    minio_data:
+        driver: local
+    faiss_data:
+        driver: local
+    embedder_cache:
+        driver: local
+
+networks:
+    mefid-network:
+        driver: bridge

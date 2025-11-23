@@ -1,0 +1,26 @@
+[project]
+name = "media_processor"
+version = "0.1.0"
+description = "Media processing service for Mefid platform"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.95.0",
+    "uvicorn[standard]>=0.22.0",
+    "opencv-python-headless>=4.8.0",
+    "scenedetect[opencv]>=0.6.0",
+    "numpy>=1.24.0",
+    "pillow>=10.0.0",
+    "python-multipart>=0.0.6",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']

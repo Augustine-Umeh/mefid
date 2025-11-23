@@ -1,6 +1,6 @@
 import httpx
-from services.exports.src.schema.constants import MEDIA_PROCESSOR_SERVICE
-from services.exports.src.schema.models import UploadRequest
+from exports.schema.constants import MEDIA_PROCESSOR_SERVICE
+from exports.schema.models import UploadRequest
 
 class MediaProcessorClient:
     def __init__(self, base_url: str = MEDIA_PROCESSOR_SERVICE):

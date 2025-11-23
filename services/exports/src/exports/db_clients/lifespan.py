@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from miniopy_async import Minio
-from services.exports.src.db_clients.db_client import create_supabase, create_minio
-from services.exports.src.db_clients.supabaseDB import SupabaseDB
-from services.exports.src.db_clients.minioDB import MinioDB
-from services.exports.src.utils.logger import get_logger
+from exports.db_clients.db_client import create_supabase, create_minio
+from exports.db_clients.supabaseDB import SupabaseDB
+from exports.db_clients.minioDB import MinioDB
+from exports.utils.logger import get_logger
 
 logger = get_logger()
 

@@ -1,6 +1,6 @@
 from supabase import acreate_client, AsyncClient
 from miniopy_async import Minio
-from services.exports.src.schema.constants import (
+from exports.schema.constants import (
     SUPABASE_DB_URL,
     SUPABASE_SERVICE_ROLE_KEY,
     MINIO_ENDPOINT,
@@ -9,6 +9,9 @@ from services.exports.src.schema.constants import (
     MINIO_BUCKET_NAME,
     MINIO_USE_SSL
 )
+from exports.utils.logger import get_logger
+
+logger = get_logger()
 
 async def create_minio() -> Minio:
     minio_client: Minio = Minio(
@@ -19,7 +22,11 @@ async def create_minio() -> Minio:
     )
     
     if not await minio_client.bucket_exists(MINIO_BUCKET_NAME):
+        logger.info(f"Creating MinIO bucket: {MINIO_BUCKET_NAME}")
         await minio_client.make_bucket(MINIO_BUCKET_NAME)
+        logger.info(f"✅ Bucket {MINIO_BUCKET_NAME} created.")
+    else:
+        logger.info(f"MinIO bucket {MINIO_BUCKET_NAME} already exists.")
     return minio_client
 
 async def create_supabase() -> AsyncClient:

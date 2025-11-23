@@ -1,6 +1,6 @@
 from typing import List, Optional
 from supabase import AsyncClient
-from services.exports.src.schema.models import (
+from exports.schema.models import (
     Media, MediaCreate,
     Frame, FrameCreate,
     FrameMetadata, FrameMetadataCreate,

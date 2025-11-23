@@ -9,6 +9,13 @@ env/
 .DS_Store
 .idea/
 
+**/indexer.egg-info/
+**/embedder.egg-info/
+**/api.egg-info/
+**/exports.egg-info/
+**/media_processor.egg-info/
+
+
 __pycache__/
 **/__pycache__/
 *.pyc

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import List, Optional
-from services.exports.src.schema.constants import MediaType
+from exports.schema.constants import MediaType
 
 class UploadResponse(BaseModel):
     file_url: Optional[HttpUrl]

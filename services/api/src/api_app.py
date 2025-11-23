@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from services.exports.src.db_clients.lifespan import lifespan
-from services.api.src.routes.upload_route import router as upload_router
-from services.api.src.routes.search_route import router as search_router
-from services.api.src.routes.health_route import router as health_router
+from exports.db_clients.lifespan import lifespan
+from .routes.upload_route import router as upload_router
+from .routes.search_route import router as search_router
+from .routes.health_route import router as health_router
 
 # -------------------------------
 # App Initialization

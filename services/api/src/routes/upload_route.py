@@ -1,10 +1,10 @@
 from typing import Optional
 from fastapi import APIRouter, File, HTTPException, Form, Request, UploadFile
-from services.exports.src.schema.models import UploadRequest
-from services.api.src.schema.responses import UploadResponse
-from services.exports.src.db_clients.minioDB import MinioDB
-from services.exports.src.schema.constants import MediaType
-from services.exports.src.utils.logger import get_logger
+from exports.schema.models import UploadRequest
+from src.schema.responses import UploadResponse
+from exports.db_clients.minioDB import MinioDB
+from exports.schema.constants import MediaType
+from exports.utils.logger import get_logger
 
 router = APIRouter()
 logger = get_logger()

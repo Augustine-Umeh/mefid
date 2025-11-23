@@ -1,5 +1,5 @@
 from urllib.parse import urljoin
-from services.exports.src.schema.constants import MINIO_BUCKET_NAME, MINIO_ENDPOINT
+from exports.schema.constants import MINIO_BUCKET_NAME, MINIO_ENDPOINT
 from typing import BinaryIO
 from miniopy_async import Minio
 
