@@ -7,9 +7,9 @@ services:
         ports:
             - "8000:8000"
         environment:
-            - MEDIA_PROCESSOR_URL=${MEDIA_PROCESSOR_SERVICE}
-            - EMBEDDER_URL=${EMBEDDER_SERVICE}
-            - INDEXER_URL=${INDEXER_SERVICE}
+            - MEDIA_PROCESSOR_SERVICE=${MEDIA_PROCESSOR_SERVICE}
+            - EMBEDDER_SERVICE=${EMBEDDER_SERVICE}
+            - INDEXER_SERVICE=${INDEXER_SERVICE}
             - MINIO_ENDPOINT=${MINIO_ENDPOINT}
             - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
             - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}

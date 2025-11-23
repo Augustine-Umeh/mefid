@@ -13,7 +13,7 @@ app = FastAPI(
 # -------------------------------
 # Routers
 # -------------------------------
-app.include_router(embed_image_router, prefix="/embed/image", tags=["Embed Image"])
+app.include_router(embed_image_router, prefix="/embed/images", tags=["Embed Image"])
 app.include_router(embed_text_router, prefix="/embed/text", tags=["Embed Text"])
 
 # -------------------------------
