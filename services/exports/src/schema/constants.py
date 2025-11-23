@@ -13,7 +13,7 @@ class MediaType(str, Enum):
 
 load_dotenv()
 
-DEFAULT_TOP_K = 5
+DEFAULT_TOP_K = os.getenv("DEFAULT_TOP_K")
 API_SERVICE = os.getenv("API_SERVICE")
 MEDIA_PROCESSOR_SERVICE = os.getenv("MEDIA_PROCESSOR_SERVICE")
 EMBEDDER_SERVICE = os.getenv("EMBEDDER_SERVICE")
