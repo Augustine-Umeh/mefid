@@ -20,8 +20,9 @@ class EmbedderClient:
     
     async def embed_images(
         self,
-        frames: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        frames: List[tuple[float, str]],
+        media_id: str
+    ) -> List[tuple[float, str]]:
         """
         Generate embeddings for video frames.
         
@@ -36,7 +37,10 @@ class EmbedderClient:
         
         response = await self.client.post(
             "/embed/images/",
-            json={"frames": frames}
+            json={
+                "frames": frames, 
+                "media_id": media_id
+            }
         )
         response.raise_for_status()
         return response.json()

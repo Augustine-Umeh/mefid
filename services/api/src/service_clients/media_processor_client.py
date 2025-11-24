@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from fastapi import UploadFile
 from exports.schema.constants import MEDIA_PROCESSOR_SERVICE
 from exports.utils.logger import get_logger
+from exports.schema.models import MediaCreate, ExtractFramesResponse
 
 logger = get_logger()
 
@@ -24,28 +25,37 @@ class MediaProcessorClient:
     
     async def extract_frames_fixed_interval(
         self, 
-        media_query: UploadFile,
-        interval_seconds: float
-    ) -> List[Dict[str, Any]]:
+        video_path: str,
+        interval_seconds: float,
+        source_url: str,
+        minio_path_url: str,
+        file_name: str
+    ) -> ExtractFramesResponse:
         """
         Extract frames at fixed intervals.
         
         Args:
-            media_query: Uploaded video file
+            video_path: Minio path to the video file
             interval_seconds: Seconds between frames
             
         Returns:
-            List of {"timestamp": float, "frame_data": str (base64)}
+            
         """
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
         
 
         response = await self.client.post(
-            "/extract/fixed_interval",
+            "/extract",
+            params={
+                "strategy": "fixed_interval",
+                "interval_seconds": interval_seconds,
+            },
             json={
-                "media_query": media_query,
-                "interval_seconds": interval_seconds
+                "video_path": video_path,
+                "source_url": source_url,
+                "minio_path_url": minio_path_url,
+                "file_name": file_name,
             }
         )
         response.raise_for_status()
@@ -53,14 +63,17 @@ class MediaProcessorClient:
     
     async def extract_frames_scene_detect(
         self,
-        media_query: UploadFile,
-        threshold: int
-    ) -> List[Dict[str, Any]]:
+        video_path: str,
+        threshold: int,
+        source_url: str,
+        minio_path_url: str,
+        file_name: str
+    ) -> ExtractFramesResponse:
         """
         Extract frames using PySceneDetect.
         
         Args:
-            media_query: Uploaded video file
+            video_path: Minio path to the video file
             threshold: Scene detection threshold
             
         Returns:
@@ -70,10 +83,16 @@ class MediaProcessorClient:
             raise RuntimeError("HTTP client is not initialized.")
         
         response = await self.client.post(
-            "/extract/scene_detect",
+            "/extract",
+            params={
+                "strategy": "fixed_interval",
+                "threshold": threshold,
+            },
             json={
-                "media_query": media_query,
-                "threshold": threshold
+                "video_path": video_path,
+                "source_url": source_url,
+                "minio_path_url": minio_path_url,
+                "file_name": file_name,
             }
         )
         response.raise_for_status()

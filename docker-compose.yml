@@ -41,7 +41,7 @@ services:
             - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
             - MINIO_USE_SSL=${MINIO_USE_SSL}
             - SUPABASE_DB_URL=${SUPABASE_DB_URL}
-            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_ANON_KEY}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
             - FRAME_INTERVAL=${FRAME_INTERVAL}
             - SCENE_THRESHOLD=${SCENE_THRESHOLD}
         depends_on:
@@ -66,7 +66,7 @@ services:
             - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
             - MINIO_USE_SSL=${MINIO_USE_SSL}
             - SUPABASE_DB_URL=${SUPABASE_DB_URL}
-            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_ANON_KEY}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
             - CLIP_MODEL_NAME=${CLIP_MODEL}
             - TRANSFORMERS_CACHE=${TRANSFORMERS_CACHE}
         depends_on:
@@ -99,7 +99,7 @@ services:
             - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
             - MINIO_USE_SSL=${MINIO_USE_SSL}
             - SUPABASE_DB_URL=${SUPABASE_DB_URL}
-            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_ANON_KEY}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
             - FAISS_INDEX_PATH=${FAISS_INDEX_PATH}
         depends_on:
             - minio

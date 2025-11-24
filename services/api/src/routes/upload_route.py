@@ -1,9 +1,8 @@
 from typing import Optional
 from fastapi import APIRouter, File, HTTPException, Form, Request, UploadFile
-from exports.schema.models import Media, UploadRequest, FrameMetadata
+from exports.schema.models import ExtractFramesResponse, Media, UploadRequest, FrameMetadata
 from src.schema.responses import UploadResponse
 from exports.db_clients.minioDB import MinioDB
-from exports.db_clients.supabaseDB import SupabaseDB
 from exports.schema.constants import MediaType, FRAME_INTERVAL, SCENE_THRESHOLD, CLIP_MODEL
 from exports.utils.logger import get_logger
 from ..service_clients.media_processor_client import MediaProcessorClient
@@ -102,42 +101,40 @@ async def upload_video(
         
         async with MediaProcessorClient() as media_processor_client:
             if extraction_strategy == "fixed_interval":
-                frames = await media_processor_client.extract_frames_fixed_interval(
-                    media_query=upload_data.video_query,
-                    interval_seconds=FRAME_INTERVAL
+                extracted_frames = await media_processor_client.extract_frames_fixed_interval(
+                    video_path=minio_object_url,
+                    interval_seconds=FRAME_INTERVAL,
+                    source_url=upload_data.source_url,
+                    minio_path_url=minio_object_url,
+                    file_name=object_name
                 )
             elif extraction_strategy == "scene_detect":
-                frames = await media_processor_client.extract_frames_scene_detect(
-                    media_query=upload_data.video_query,
-                    threshold=SCENE_THRESHOLD
+                extracted_frames = await media_processor_client.extract_frames_scene_detect(
+                    video_path=minio_object_url,
+                    threshold=SCENE_THRESHOLD,
+                    source_url=upload_data.source_url,
+                    minio_path_url=minio_object_url,
+                    file_name=object_name
                 )
             else:
                 raise ValueError("Unsupported extraction strategy. Use 'fixed_interval' or 'scene_detect'")
-            
-        supabase_db: SupabaseDB = request.app.state.supabase
         
-        media: Media = await supabase_db.insert_media({
-            "source_url": upload_data.source_url,
-            "minio_path_url": minio_object_url,
-            "file_name": object_name,
-            "duration_seconds": upload_data.duration_seconds,
-            "extraction_strategy": extraction_strategy,
-            "frame_count": len(frames)
-        })
-        
-        logger.info(f"Extracted {len(frames)} frames from video.")
+        logger.info(f"Extracted {extracted_frames.frame_count} frames from video.")
         
         async with EmbedderClient() as embedder_client:
-            embeddings = await embedder_client.embed_images(frames=frames)
+            embeddings = await embedder_client.embed_images(
+                frames=extracted_frames.frames,
+                media_id=extracted_frames.media_id
+            )
             
         logger.info(f"Generated embeddings for {len(embeddings)} frames.")
             
         async with IndexerClient() as indexer_client:
             reesult = await indexer_client.add_vectors(
-                media_id=media.id,
+                media_id=extracted_frames.media_id,
                 embeddings=embeddings
             )
-        logger.info(f"Indexed {len(reesult.amount)} embeddings for video ID {media.id}.")
+        logger.info(f"Indexed {len(reesult.amount)} embeddings for media ID {extracted_frames.media_id}.")
         
         return {
             "message": "Uploaded successfully",

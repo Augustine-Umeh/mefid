@@ -99,8 +99,8 @@ class Indexes(BaseSchema):
 # ==============================================
 class MediaCreate(BaseModel):
     """Model for creating a new media item."""
-    source_url: Optional[HttpUrl] = None
-    minio_path_url: HttpUrl
+    source_url: Optional[str] = None
+    minio_path_url: str
     file_name: str
     duration_seconds: Optional[float] = None
     extraction_strategy: Optional[str] = None
@@ -174,3 +174,17 @@ class SearchRequest(BaseModel):
         None,
         description="Type of media to search against, e.g., 'image', 'video', 'all'",
     )
+    
+class FrameData(BaseModel):
+    """Single frame data"""
+    timestamp: float
+    frame_data: str  # base64 encoded
+
+
+class ExtractFramesResponse(BaseModel):
+    """Response model for frame extraction"""
+    video_path: str
+    frames: List[FrameData]
+    frame_count: int
+    strategy: str
+    media_id: str
