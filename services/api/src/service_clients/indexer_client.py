@@ -21,7 +21,7 @@ class IndexerClient:
         self,
         video_id: str,
         embeddings: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    ) -> int:
         """
         Add embeddings to FAISS index.
         

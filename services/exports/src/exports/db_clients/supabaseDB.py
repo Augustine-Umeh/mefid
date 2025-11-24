@@ -19,7 +19,7 @@ class SupabaseDB:
         response = await self.client.table("media").select("*").execute()
         return [Media(**m) for m in response.data]
 
-    async def get_media_by_id(self, media_id: int) -> Optional[Media]:
+    async def get_media_by_id(self, media_id: str) -> Optional[Media]:
         response = await self.client.table("media").select("*").eq("id", media_id).execute()
         return Media(**response.data[0]) if response.data else None
 
@@ -27,11 +27,11 @@ class SupabaseDB:
         response = await self.client.table("media").insert(media_data.model_dump()).execute()
         return Media(**response.data[0])
 
-    async def update_media(self, media_id: int, update_data: Media) -> Media:
+    async def update_media(self, media_id: str, update_data: Media) -> Media:
         response = await self.client.table("media").update(update_data.to_dict()).eq("id", media_id).execute()
         return Media(**response.data[0])
 
-    async def delete_media(self, media_id: int) -> None:
+    async def delete_media(self, media_id: str) -> None:
         await self.client.table("media").delete().eq("id", media_id).execute()
 
     # ===================== Frame =====================
@@ -63,11 +63,11 @@ class SupabaseDB:
         response = await self.client.table("frame_metadata").select("*").execute()
         return [FrameMetadata(**fm) for fm in response.data]
 
-    async def get_frame_metadata_by_frame_id(self, frame_id: int) -> Optional[FrameMetadata]:
-        response = await self.client.table("frame_metadata").select("*").eq("frame_id", frame_id).execute()
+    async def get_frame_metadata_by_media_id(self, media_id: str) -> Optional[FrameMetadata]:
+        response = await self.client.table("frame_metadata").select("*").eq("media_id", media_id).execute()
         return FrameMetadata(**response.data[0]) if response.data else None
 
-    async def get_frame_metadata_by_id(self, metadata_id: int) -> Optional[FrameMetadata]:
+    async def get_frame_metadata_by_id(self, metadata_id: str) -> Optional[FrameMetadata]:
         response = await self.client.table("frame_metadata").select("*").eq("id", metadata_id).execute()
         return FrameMetadata(**response.data[0]) if response.data else None
 
@@ -75,11 +75,11 @@ class SupabaseDB:
         response = await self.client.table("frame_metadata").insert(metadata_data.model_dump()).execute()
         return FrameMetadata(**response.data[0])
 
-    async def update_frame_metadata(self, metadata_id: int, update_data: FrameMetadata) -> FrameMetadata:
+    async def update_frame_metadata(self, metadata_id: str, update_data: FrameMetadata) -> FrameMetadata:
         response = await self.client.table("frame_metadata").update(update_data.to_dict()).eq("id", metadata_id).execute()
         return FrameMetadata(**response.data[0])
 
-    async def delete_frame_metadata(self, metadata_id: int) -> None:
+    async def delete_frame_metadata(self, metadata_id: str) -> None:
         await self.client.table("frame_metadata").delete().eq("id", metadata_id).execute()
 
     # ===================== SearchQuery =====================

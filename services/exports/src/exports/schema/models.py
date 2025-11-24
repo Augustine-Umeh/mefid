@@ -4,7 +4,7 @@ from typing import Optional, List, Dict
 from pydantic import BaseModel
 from .constants import MediaType
 from pydantic import BaseModel, Field, HttpUrl
-from fastapi import UploadFile, File, Form
+from fastapi import UploadFile, File
 
 
 # ==============================================
@@ -31,15 +31,14 @@ class BaseSchema:
 @dataclass
 class Media(BaseSchema):
     """Media model representing a media item."""
-    title: Optional[str] = None
-    description: Optional[str] = None
+    id: Optional[str] = None
     source_url: Optional[str] = None
-    media_type: Optional[MediaType] = None
+    created_at: Optional[datetime] = None
+    minio_path_url: Optional[str] = None
     file_name: Optional[str] = None
     duration_seconds: Optional[float] = None
-    storage_path: Optional[str] = None
-    status: Optional[str] = None
-    updated_at: Optional[datetime] = None
+    extraction_strategy: Optional[str] = None
+    frame_count: Optional[int] = None
 
 
 @dataclass
@@ -54,11 +53,11 @@ class Frame(BaseSchema):
 @dataclass
 class FrameMetadata(BaseSchema):
     """FrameMetadata model representing metadata for a frame."""
-    frame_id: Optional[int] = None
-    scene_description: Optional[str] = None
-    detected_objects: Optional[List[str]] = field(default_factory=list)
-    detected_text: Optional[str] = None
-    color_palette: Optional[List[str]] = field(default_factory=list)
+    id: Optional[str] = None
+    media_id: Optional[str] = None
+    timestamp_seconds: Optional[float] = None
+    created_at: Optional[datetime] = None
+    embedding_index: Optional[int] = None
 
 
 @dataclass
@@ -100,14 +99,12 @@ class Indexes(BaseSchema):
 # ==============================================
 class MediaCreate(BaseModel):
     """Model for creating a new media item."""
-    title: str
-    source_url: str
+    source_url: Optional[HttpUrl] = None
+    minio_path_url: HttpUrl
     file_name: str
-    media_type: MediaType
-    description: Optional[str] = None
     duration_seconds: Optional[float] = None
-    storage_path: Optional[str] = None
-    status: Optional[str] = "processing"
+    extraction_strategy: Optional[str] = None
+    frame_count: Optional[int] = None
 
 
 class FrameCreate(BaseModel):

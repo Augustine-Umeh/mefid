@@ -1,5 +1,6 @@
 import httpx
 from typing import List, Dict, Any
+from fastapi import UploadFile
 from exports.schema.constants import MEDIA_PROCESSOR_SERVICE
 from exports.utils.logger import get_logger
 
@@ -23,14 +24,14 @@ class MediaProcessorClient:
     
     async def extract_frames_fixed_interval(
         self, 
-        video_id: str,
+        media_query: UploadFile,
         interval_seconds: float
     ) -> List[Dict[str, Any]]:
         """
         Extract frames at fixed intervals.
         
         Args:
-            video_id: ID of video in MinIO
+            media_query: Uploaded video file
             interval_seconds: Seconds between frames
             
         Returns:
@@ -43,7 +44,7 @@ class MediaProcessorClient:
         response = await self.client.post(
             "/extract/fixed_interval",
             json={
-                "video_id": video_id,
+                "media_query": media_query,
                 "interval_seconds": interval_seconds
             }
         )
@@ -52,14 +53,14 @@ class MediaProcessorClient:
     
     async def extract_frames_scene_detect(
         self,
-        video_id: str,
+        media_query: UploadFile,
         threshold: int
     ) -> List[Dict[str, Any]]:
         """
         Extract frames using PySceneDetect.
         
         Args:
-            video_id: ID of video in MinIO
+            media_query: Uploaded video file
             threshold: Scene detection threshold
             
         Returns:
@@ -71,7 +72,7 @@ class MediaProcessorClient:
         response = await self.client.post(
             "/extract/scene_detect",
             json={
-                "video_id": video_id,
+                "media_query": media_query,
                 "threshold": threshold
             }
         )

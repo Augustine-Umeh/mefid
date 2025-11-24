@@ -13,12 +13,12 @@ logger = get_logger()
 async def lifespan(app: FastAPI):
     """
     Initialize SupabaseDB and MinioDB clients for any FastAPI service.
-    Assigns to `app.state.db` and `app.state.minio`.
+    Assigns to `app.state.supabase` and `app.state.minio`.
     """
     try:
         logger.info("Connecting to Supabase...")
         supabase_client = await create_supabase()
-        app.state.db = SupabaseDB(supabase_client)
+        app.state.supabase = SupabaseDB(supabase_client)
         logger.info("✅ Supabase connected.")
 
         logger.info("Connecting to MinIO...")
@@ -30,6 +30,6 @@ async def lifespan(app: FastAPI):
 
     finally:
         logger.info("Cleaning up DB and MinIO clients...")
-        app.state.db = None
+        app.state.supabase = None
         app.state.minio = None
         logger.info("✅ Cleanup complete.")
