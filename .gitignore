@@ -15,6 +15,9 @@ env/
 **/exports.egg-info/
 **/media_processor.egg-info/
 
+MILESSTONE.md
+PROGRESS.md
+
 
 __pycache__/
 **/__pycache__/

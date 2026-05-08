@@ -155,10 +155,22 @@ class IndexesCreate(BaseModel):
     status: Optional[str] = "building"
 
     
-class UploadRequest(BaseModel):
-    image_query: Optional[UploadFile] = File(None, description="Image file for search.")
-    video_query: Optional[UploadFile] = Field(None, description="Video file for search.")
-    media_type: MediaType = Field(..., description="Type of media being uploaded.")
+class UploadImageRequest(BaseModel):
+    """Internal model that bundles metadata for an image upload."""
+    model_config = {"arbitrary_types_allowed": True}
+
+    image_query: UploadFile = Field(..., description="Image file being uploaded.")
+    title: Optional[str] = Field(None, description="Title of the media.")
+    filename: Optional[str] = Field(None, description="Name of the media file.")
+    description: Optional[str] = Field(None, description="Description of the media.")
+    source_url: Optional[HttpUrl] = Field(None, description="Original source URL of the media.")
+
+
+class UploadVideoRequest(BaseModel):
+    """Internal model that bundles metadata for a video upload."""
+    model_config = {"arbitrary_types_allowed": True}
+
+    video_query: UploadFile = Field(..., description="Video file being uploaded.")
     title: Optional[str] = Field(None, description="Title of the media.")
     filename: Optional[str] = Field(None, description="Name of the media file.")
     description: Optional[str] = Field(None, description="Description of the media.")

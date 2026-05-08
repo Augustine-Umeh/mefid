@@ -1,7 +1,8 @@
 # Mefid Exports Package
 
-**Shared Python package for the Mefid project**, providing centralized access to constants, database clients, models, and utilities.  
-This package acts as the **foundation layer** used by all services (API, Embedder, Indexer, Media Processor, etc.) to ensure consistent configuration and integration with MinIO, Supabase, and other shared systems.
+**Shared Python package for Mefid** — a personal, multimodal scene-search engine for your own video and image collection. This package provides centralized access to constants, database clients, models, and utilities.
+
+It acts as the **foundation layer** used by all services (API, Embedder, Indexer, Media Processor) to ensure consistent configuration and integration with MinIO, Supabase, and other shared systems.
 
 ---
 
@@ -150,5 +151,4 @@ logger.debug("Inserted frames to Supabase")
 | **Media Processor**    | `db_clients.minioDB`, `db_clients.supabaseDB`, `schemas.models`, `utils.logger` | Uploads media files to MinIO, stores metadata in Supabase, and logs operations                                |
 | **Embedder Service**   | `schemas.models`, `utils.logger`                                                | Uses shared models to represent frame and clip metadata before embedding                                      |
 | **Indexer Service**    | `schemas.models`, `utils.logger`, `db_clients.supabaseDB`                       | Reads metadata from Supabase to populate FAISS index; logs search and indexing processes                      |
-| **Ingest Service**     | `db_clients.minioDB`, `schemas.constants`, `utils.logger`                       | Retrieves raw files from MinIO and triggers ingestion workflows                                               |
 | **Frontend (via API)** | —                                                                               | Does not import `exports` directly, but benefits from consistent schema definitions used in backend responses |

@@ -5,7 +5,7 @@ from .routes.search import router as search_router
 
 app = FastAPI(
     title="Mefid Indexer Service",
-    description="Indexes media metadata for efficient retrieval in the Mefid pipeline.",
+    description="Maintains a FAISS vector index over the user's uploaded media so Mefid can retrieve nearest scenes for multimodal search queries.",
     version="0.1.0",
     lifespan=lifespan 
 )

@@ -1,6 +1,6 @@
 # Mefid API Layer
 
-**FastAPI gateway for the Mefid project**, exposing endpoints for media uploads, search, and health checks. This layer is responsible for handling incoming HTTP requests and communicating **only with the Media Processor service**.
+**FastAPI gateway for Mefid** — a personal, multimodal scene-search engine for your own video and image collection. This service exposes endpoints for media uploads, search, and health checks, handling incoming HTTP requests from the frontend and orchestrating downstream services (Media Processor, Embedder, Indexer).
 
 It does **not** handle persistence directly; all heavy processing and storage are delegated to downstream services.
 

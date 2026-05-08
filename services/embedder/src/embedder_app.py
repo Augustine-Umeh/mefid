@@ -5,7 +5,7 @@ from .routes.embed_text import router as embed_text_router
 
 app = FastAPI(
     title="Mefid Embedder Service",
-    description="Generates embeddings for media files for the Mefid indexing and retrieval pipeline.",
+    description="Generates CLIP embeddings for frames and text queries so Mefid can search the user's personal video and image collection by content, tone, and emotion.",
     version="0.1.0",
     lifespan=lifespan 
 )

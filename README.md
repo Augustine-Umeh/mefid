@@ -1,6 +1,7 @@
 # Mefid
-Mefid is an intelligent, multimodal movie and video scene search engine. It allows users to discover, identify, and explore scenes through visuals, or natural language.
 
-Upload a **clip** or **screenshot**, or type a **description**, and Mefid finds **matching or related scenes** from a curated video library using **deep learning embeddings** that capture **content, tone, and emotion**.
+Mefid is a **personal, multimodal scene-search engine** for your own video and image collection — a private memory layer for the visual content you actually care about.
 
-Think of it as **"Shazam + Google Search + CLIP for visual memories".**
+Upload a **clip**, **screenshot**, or type a **description**, and Mefid finds the **matching or related scenes from media you've uploaded yourself**, using **deep-learning embeddings** that capture **content, tone, and emotion**.
+
+Think of it as **"Shazam + Google Search + CLIP — for your personal visual memories."**

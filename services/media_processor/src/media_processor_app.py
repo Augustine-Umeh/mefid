@@ -4,7 +4,7 @@ from .routes.extract import router as extract_router
 
 app = FastAPI(
     title="Mefid Media Processor",
-    description="Processes media uploads for the Mefid indexing and retrieval pipeline.",
+    description="Processes user-uploaded media (videos, images) for Mefid — extracts frames so they can be embedded and searched as personal scene memories.",
     version="0.1.0",
     lifespan=lifespan 
 )
