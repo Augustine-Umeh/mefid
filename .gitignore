@@ -15,8 +15,11 @@ env/
 **/exports.egg-info/
 **/media_processor.egg-info/
 
+*.sql
+
 MILESTONE.md
 PROGRESS.md
+DECISIONS.md
 
 
 __pycache__/

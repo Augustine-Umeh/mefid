@@ -1,15 +1,28 @@
 import httpx
-from typing import List, Dict, Any
+from typing import Dict, List, Union
+from uuid import UUID
+
 from exports.schema.constants import INDEXER_SERVICE
+from exports.schema.models import (
+    AddVectorItem,
+    AddVectorsRequest,
+    AddVectorsResponse,
+    SearchHit,
+    SearchVectorsRequest,
+    SearchVectorsResponse,
+)
+
+
+IdLike = Union[str, UUID]
 
 
 class IndexerClient:
     """Client for the Indexer service.
 
     Supports two usage patterns:
-      * As an async context manager (`async with IndexerClient() as c: ...`)
-      * As a long-lived client owned by the FastAPI app
-        (`await client.connect()` at startup, `await client.close()` at shutdown).
+      * Async context manager (``async with IndexerClient() as c: ...``).
+      * Long-lived client owned by FastAPI (``await client.connect()`` at
+        startup, ``await client.close()`` at shutdown).
     """
 
     def __init__(self, base_url: str = INDEXER_SERVICE):
@@ -34,61 +47,44 @@ class IndexerClient:
 
     async def add_vectors(
         self,
-        media_id: str,
-        embeddings: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
-        """
-        Add embeddings to the FAISS index.
+        media_id: IdLike,
+        vectors: List[AddVectorItem],
+    ) -> AddVectorsResponse:
+        """Add embeddings to FAISS and persist `embeddings` rows.
 
-        Args:
-            media_id: Media identifier (matches the Supabase `media.id`)
-            embeddings: List of {"timestamp": float, "embedding": List[float]}
-
-        Returns:
-            {"start_index": int, "count": int}
+        The indexer service is responsible for both the FAISS write and the
+        Supabase insert (it's the only place that knows the resulting
+        ``faiss_index_id`` for each vector).
         """
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
 
-        response = await self.client.post(
-            "/add/",
-            json={
-                "media_id": media_id,
-                "embeddings": embeddings,
-            },
-        )
+        payload = AddVectorsRequest(
+            media_id=str(media_id),
+            vectors=vectors,
+        ).model_dump(mode="json")
+        response = await self.client.post("/add/", json=payload)
         response.raise_for_status()
-        return response.json()
+        return AddVectorsResponse(**response.json())
 
-    async def query_vectors(
+    async def search_vectors(
         self,
-        query_embedding: List[float],
+        embedding: List[float],
         top_k: int,
-    ) -> Dict[str, Any]:
-        """
-        Search the FAISS index for similar embeddings.
-
-        Args:
-            query_embedding: Query vector (e.g. 512-d for CLIP ViT-B/32)
-            top_k: Number of results to return
-
-        Returns:
-            {"distances": List[float], "indices": List[int]}
-        """
+    ) -> List[SearchHit]:
+        """Nearest-neighbour search against the FAISS index."""
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
 
-        response = await self.client.post(
-            "/search/",
-            json={
-                "query_embedding": query_embedding,
-                "top_k": top_k,
-            },
-        )
+        payload = SearchVectorsRequest(
+            embedding=embedding,
+            top_k=top_k,
+        ).model_dump(mode="json")
+        response = await self.client.post("/search/", json=payload)
         response.raise_for_status()
-        return response.json()
+        return SearchVectorsResponse(**response.json()).hits
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> Dict[str, str]:
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
 

@@ -3,14 +3,48 @@ from dotenv import load_dotenv
 from enum import Enum
 
 
+# ============================================================
+# DB-aligned enums (must match dev_schema.sql exactly)
+# ============================================================
 class MediaType(str, Enum):
+    """Postgres `media_type` enum — what a `media` row IS."""
+    VIDEO = "video"
+    IMAGE = "image"
+
+
+class ContentType(str, Enum):
+    """Postgres `content_type` enum — pacing/vibe descriptor for a media row."""
+    FAST_PACED = "fast_paced"
+    STATIC = "static"
+    MIXED = "mixed"
+
+
+class ExtractionStrategy(str, Enum):
+    """Postgres `extraction_strategy` enum — how frames were extracted."""
+    FIXED_INTERVAL = "fixed_interval"
+    SCENE_DETECT = "scene_detect"
+    HYBRID = "hybrid"
+
+
+class MediaStatus(str, Enum):
+    """Postgres `media_status` enum — lifecycle state of a media row."""
+    PROCESSING = "processing"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class VectorType(str, Enum):
+    """Postgres `vector_type` enum — what an embedding represents."""
+    IMAGE = "image"
+    TEXT = "text"
+
+
+class QueryType(str, Enum):
+    """Postgres `query_type` enum — modality of a search query."""
+    TEXT = "text"
     IMAGE = "image"
     VIDEO = "video"
-    TEXT = "text"
-    IMAGE_VIDEO = "image_video"
-    TEXT_IMAGE = "text_image"
-    TEXT_VIDEO = "text_video"
-    ALL = "all"
+    MULTIMODAL = "multimodal"
 
 
 load_dotenv()

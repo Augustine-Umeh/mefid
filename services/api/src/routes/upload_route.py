@@ -3,8 +3,20 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from exports.db_clients.minioDB import MinioDB
-from exports.schema.constants import FRAME_INTERVAL, SCENE_THRESHOLD
-from exports.schema.models import UploadImageRequest, UploadVideoRequest
+from exports.db_clients.supabaseDB import SupabaseDB
+from exports.schema.constants import (
+    FRAME_INTERVAL,
+    SCENE_THRESHOLD,
+    MediaStatus,
+    VectorType,
+)
+from exports.schema.models import (
+    AddVectorItem,
+    EmbedImageItem,
+    MediaUpdate,
+    UploadImageRequest,
+    UploadVideoRequest,
+)
 from exports.utils.logger import get_logger
 
 from src.schema.responses import UploadResponse
@@ -25,7 +37,11 @@ async def upload_image(
     description: Optional[str] = Form(None),
     source_url: Optional[str] = Form(None),
 ) -> UploadResponse:
-    """Stream an image upload to MinIO."""
+    """Stream an image upload to MinIO.
+
+    Image uploads currently don't insert a `media` row — they're just
+    transient assets used for search-by-image queries later.
+    """
     upload_data = UploadImageRequest(
         image_query=image_query,
         title=title,
@@ -40,14 +56,14 @@ async def upload_image(
     try:
         logger.info(f"Uploading {object_name} to MinIO...")
         minio_db: MinioDB = request.app.state.minio
-        minio_object_url = await minio_db.upload_file(
+        file_url = await minio_db.upload_file(
             object_name=object_name,
             file_data=upload_data.image_query.file,
             content_type=content_type,
         )
 
-        logger.info(f"Uploaded successfully: {minio_object_url}")
-        return UploadResponse(file_url=minio_object_url)
+        logger.info(f"Uploaded successfully: {file_url}")
+        return UploadResponse(file_url=file_url)
 
     except Exception as e:
         logger.error(f"Upload failed: {e}")
@@ -65,7 +81,12 @@ async def upload_video(
     source_url: Optional[str] = Form(None),
     extraction_strategy: Optional[str] = Form("fixed_interval"),
 ) -> UploadResponse:
-    """Stream a video upload to MinIO, then extract → embed → index."""
+    """Stream a video upload to MinIO, then extract → embed → index.
+
+    On success the `media` row is flipped from ``processing`` → ``ready``.
+    On any post-extraction failure we try to flip it to ``failed`` so
+    pipeline state matches reality.
+    """
     upload_data = UploadVideoRequest(
         video_query=video_query,
         title=title,
@@ -78,63 +99,99 @@ async def upload_video(
     object_name = upload_data.video_query.filename
     content_type = upload_data.video_query.content_type or "application/octet-stream"
 
+    minio_db: MinioDB = request.app.state.minio
+    supabase: SupabaseDB = request.app.state.supabase
+    media_processor: MediaProcessorClient = request.app.state.media_processor
+    embedder: EmbedderClient = request.app.state.embedder
+    indexer: IndexerClient = request.app.state.indexer
+
+    media_id: str | None = None
+
     try:
-        minio_db: MinioDB = request.app.state.minio
-        minio_object_url = await minio_db.upload_file(
+        # ---- Stream the source video to MinIO --------------------------
+        file_url = await minio_db.upload_file(
             object_name=object_name,
             file_data=upload_data.video_query.file,
             content_type=content_type,
         )
 
-        media_processor: MediaProcessorClient = request.app.state.media_processor
-        embedder: EmbedderClient = request.app.state.embedder
-        indexer: IndexerClient = request.app.state.indexer
-
-        source_url_str = str(upload_data.source_url) if upload_data.source_url else ""
-
+        # ---- Extract frames (also inserts media + frames rows) ---------
         if extraction_strategy == "fixed_interval":
-            extracted_frames = await media_processor.extract_frames_fixed_interval(
-                video_path=object_name,
-                interval_seconds=FRAME_INTERVAL,
-                source_url=source_url_str,
-                minio_path_url=minio_object_url,
+            extracted = await media_processor.extract_frames_fixed_interval(
+                video_object_key=object_name,
+                file_url=file_url,
                 file_name=object_name,
+                interval_seconds=FRAME_INTERVAL,
             )
         elif extraction_strategy == "scene_detect":
-            extracted_frames = await media_processor.extract_frames_scene_detect(
-                video_path=object_name,
-                threshold=SCENE_THRESHOLD,
-                source_url=source_url_str,
-                minio_path_url=minio_object_url,
+            extracted = await media_processor.extract_frames_scene_detect(
+                video_object_key=object_name,
+                file_url=file_url,
                 file_name=object_name,
+                threshold=SCENE_THRESHOLD,
             )
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Unsupported extraction strategy. Use 'fixed_interval' or 'scene_detect'.",
+                detail=(
+                    "Unsupported extraction strategy. "
+                    "Use 'fixed_interval' or 'scene_detect'."
+                ),
             )
 
-        logger.info(f"Extracted {extracted_frames.frame_count} frames from video.")
-
-        embeddings = await embedder.embed_images(
-            frames=[f.model_dump() for f in extracted_frames.frames],
-            media_id=extracted_frames.media_id,
+        media_id = str(extracted.media_id)
+        logger.info(
+            f"Extracted {extracted.frame_count} frames "
+            f"(media_id={media_id}, duration={extracted.duration:.2f}s)"
         )
-        logger.info(f"Generated embeddings for {len(embeddings)} frames.")
 
-        result = await indexer.add_vectors(
-            media_id=extracted_frames.media_id,
-            embeddings=embeddings,
+        # ---- Embed frames ----------------------------------------------
+        embedder_input = [
+            EmbedImageItem(frame_id=f.frame_id, frame_data=f.frame_data)
+            for f in extracted.frames
+        ]
+        embeddings = await embedder.embed_images(embedder_input)
+        logger.info(f"Generated {len(embeddings)} embeddings.")
+
+        # ---- Index vectors (indexer also writes embeddings rows) -------
+        index_input = [
+            AddVectorItem(
+                frame_id=e.frame_id,
+                embedding=e.embedding,
+                vector_type=VectorType.IMAGE,
+            )
+            for e in embeddings
+        ]
+        index_result = await indexer.add_vectors(
+            media_id=extracted.media_id,
+            vectors=index_input,
         )
         logger.info(
-            f"Indexed {result.get('count', 0)} embeddings for media ID "
-            f"{extracted_frames.media_id}."
+            f"Indexed {index_result.count} vectors for media_id={media_id}"
         )
 
-        return UploadResponse(file_url=minio_object_url)
+        # ---- Flip status to ready --------------------------------------
+        await supabase.update_media(
+            media_id, MediaUpdate(status=MediaStatus.READY)
+        )
+
+        return UploadResponse(file_url=file_url)
 
     except HTTPException:
+        await _try_mark_failed(supabase, media_id)
         raise
     except Exception as e:
-        logger.error(f"Upload failed: {e}")
+        logger.error(f"Upload failed: {e}", exc_info=True)
+        await _try_mark_failed(supabase, media_id)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _try_mark_failed(supabase: SupabaseDB, media_id: str | None) -> None:
+    if media_id is None:
+        return
+    try:
+        await supabase.update_media(
+            media_id, MediaUpdate(status=MediaStatus.FAILED)
+        )
+    except Exception:
+        logger.exception(f"Failed to mark media {media_id} as 'failed'")

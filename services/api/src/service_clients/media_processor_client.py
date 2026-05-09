@@ -1,8 +1,11 @@
 import httpx
-from typing import Dict, Any
+from typing import Dict
+
+from exports.schema.constants import EMBEDDER_SERVICE  # noqa: F401  (kept for parity import patterns)
 from exports.schema.constants import MEDIA_PROCESSOR_SERVICE
-from exports.utils.logger import get_logger
+from exports.schema.constants import ExtractionStrategy
 from exports.schema.models import ExtractFramesResponse
+from exports.utils.logger import get_logger
 
 logger = get_logger()
 
@@ -11,9 +14,9 @@ class MediaProcessorClient:
     """Client for the Media Processor service.
 
     Supports two usage patterns:
-      * As an async context manager (`async with MediaProcessorClient() as c: ...`)
-      * As a long-lived client owned by the FastAPI app
-        (`await client.connect()` at startup, `await client.close()` at shutdown).
+      * Async context manager (``async with MediaProcessorClient() as c: ...``).
+      * Long-lived client owned by FastAPI (``await client.connect()`` at
+        startup, ``await client.close()`` at shutdown).
     """
 
     def __init__(self, base_url: str = MEDIA_PROCESSOR_SERVICE):
@@ -36,73 +39,64 @@ class MediaProcessorClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
-    async def extract_frames_fixed_interval(
+    async def _extract(
         self,
-        video_path: str,
-        interval_seconds: float,
-        source_url: str,
-        minio_path_url: str,
+        *,
+        strategy: ExtractionStrategy,
+        params_extra: Dict[str, float | int],
+        video_object_key: str,
+        file_url: str,
         file_name: str,
     ) -> ExtractFramesResponse:
-        """
-        Extract frames at fixed time intervals.
-
-        Args:
-            video_path: MinIO path to the video file
-            interval_seconds: Seconds between frames
-        """
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
 
+        params: Dict[str, str | float | int] = {"strategy": strategy.value}
+        params.update(params_extra)
+
         response = await self.client.post(
             "/extract/",
-            params={
-                "strategy": "fixed_interval",
-                "interval_seconds": interval_seconds,
-            },
+            params=params,
             json={
-                "video_path": video_path,
-                "source_url": source_url,
-                "minio_path_url": minio_path_url,
+                "video_object_key": video_object_key,
+                "file_url": file_url,
                 "file_name": file_name,
             },
         )
         response.raise_for_status()
         return ExtractFramesResponse(**response.json())
+
+    async def extract_frames_fixed_interval(
+        self,
+        *,
+        video_object_key: str,
+        file_url: str,
+        file_name: str,
+        interval_seconds: float,
+    ) -> ExtractFramesResponse:
+        return await self._extract(
+            strategy=ExtractionStrategy.FIXED_INTERVAL,
+            params_extra={"interval_seconds": interval_seconds},
+            video_object_key=video_object_key,
+            file_url=file_url,
+            file_name=file_name,
+        )
 
     async def extract_frames_scene_detect(
         self,
-        video_path: str,
-        threshold: int,
-        source_url: str,
-        minio_path_url: str,
+        *,
+        video_object_key: str,
+        file_url: str,
         file_name: str,
+        threshold: int,
     ) -> ExtractFramesResponse:
-        """
-        Extract frames using PySceneDetect.
-
-        Args:
-            video_path: MinIO path to the video file
-            threshold: Scene detection threshold (lower = more sensitive)
-        """
-        if not self.client:
-            raise RuntimeError("HTTP client is not initialized.")
-
-        response = await self.client.post(
-            "/extract/",
-            params={
-                "strategy": "scene_detect",
-                "threshold": threshold,
-            },
-            json={
-                "video_path": video_path,
-                "source_url": source_url,
-                "minio_path_url": minio_path_url,
-                "file_name": file_name,
-            },
+        return await self._extract(
+            strategy=ExtractionStrategy.SCENE_DETECT,
+            params_extra={"threshold": threshold},
+            video_object_key=video_object_key,
+            file_url=file_url,
+            file_name=file_name,
         )
-        response.raise_for_status()
-        return ExtractFramesResponse(**response.json())
 
     async def health_check(self) -> Dict[str, str]:
         if not self.client:

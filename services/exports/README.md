@@ -50,9 +50,9 @@ exports/
 │   │   ├── lifespan.py       # FastAPI lifespan management for DB connections
 │   │   ├── minioDB.py        # MinioDB class for interacting with MinIO object storage
 │   │   ├── supabaseDB.py     # SupabaseDB class for interacting with Supabase database
-│   ├── schemas/
-│   │   ├── constants.py      # constants and configuration settings for the exports package
-│   │   ├── models.py         # dataclass & Pydantic models shared across services
+│   ├── schema/
+│   │   ├── constants.py      # env-driven config + DB-aligned enums
+│   │   ├── models.py         # Pydantic v2 row/create models + pipeline DTOs
 │   └── utils/
 │       └── logger.py         # logging utility for structured, async-safe logging
 └── README.md
