@@ -47,10 +47,7 @@ async def upload_image(
         )
 
         logger.info(f"Uploaded successfully: {minio_object_url}")
-        return {
-            "message": "Upload successful",
-            "file_url": minio_object_url,
-        }
+        return UploadResponse(file_url=minio_object_url)
 
     except Exception as e:
         logger.error(f"Upload failed: {e}")
@@ -97,7 +94,7 @@ async def upload_video(
 
         if extraction_strategy == "fixed_interval":
             extracted_frames = await media_processor.extract_frames_fixed_interval(
-                video_path=minio_object_url,
+                video_path=object_name,
                 interval_seconds=FRAME_INTERVAL,
                 source_url=source_url_str,
                 minio_path_url=minio_object_url,
@@ -105,7 +102,7 @@ async def upload_video(
             )
         elif extraction_strategy == "scene_detect":
             extracted_frames = await media_processor.extract_frames_scene_detect(
-                video_path=minio_object_url,
+                video_path=object_name,
                 threshold=SCENE_THRESHOLD,
                 source_url=source_url_str,
                 minio_path_url=minio_object_url,
@@ -134,10 +131,7 @@ async def upload_video(
             f"{extracted_frames.media_id}."
         )
 
-        return {
-            "message": "Uploaded successfully",
-            "file_url": minio_object_url,
-        }
+        return UploadResponse(file_url=minio_object_url)
 
     except HTTPException:
         raise

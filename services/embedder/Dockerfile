@@ -8,6 +8,20 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install CPU-only PyTorch BEFORE anything else.
+#
+# The default PyPI wheel for `torch` on linux pulls in the full NVIDIA
+# CUDA stack (cudnn, cublas, cusparse, nccl, triton, ...) — ~2.5 GB
+# of GPU libraries that are useless inside Docker Desktop on macOS
+# and frequently exhaust the VM's disk during image build.
+#
+# By pre-installing the CPU build from PyTorch's CPU index, the
+# subsequent `pip install -e .` sees `torch>=2.0.0` as already
+# satisfied and doesn't reach for the GPU wheels.
+RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    "torch>=2.0.0"
+
 # Install shared/exports package
 COPY services/exports /tmp/exports
 RUN pip install --no-cache-dir /tmp/exports
@@ -16,7 +30,7 @@ RUN pip install --no-cache-dir /tmp/exports
 COPY ./services/embedder/pyproject.toml ./
 COPY ./services/embedder/src ./src
 
-# Install embedder service
+# Install embedder service (torch is already satisfied above)
 RUN pip install --no-cache-dir -e .
 
 # Create cache directory for models

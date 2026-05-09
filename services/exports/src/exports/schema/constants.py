@@ -16,12 +16,18 @@ class MediaType(str, Enum):
 load_dotenv()
 
 
-def _get_float(name: str) -> float:
-    return float(os.getenv(name))
+def _get_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return float(value)
 
 
-def _get_int(name: str) -> int:
-    return int(os.getenv(name))
+def _get_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return int(value)
 
 
 # -----------------------------
@@ -52,15 +58,15 @@ MINIO_USE_SSL = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
 # -----------------------------
 # Pipeline tunables (typed, with safe defaults)
 # -----------------------------
-FRAME_INTERVAL: float = _get_float("FRAME_INTERVAL")
-SCENE_THRESHOLD: int = _get_int("SCENE_THRESHOLD")
-DEFAULT_TOP_K: int = _get_int("DEFAULT_TOP_K")
+FRAME_INTERVAL: float = _get_float("FRAME_INTERVAL", 2.0)
+SCENE_THRESHOLD: int = _get_int("SCENE_THRESHOLD", 10)
+DEFAULT_TOP_K: int = _get_int("DEFAULT_TOP_K", 10)
 
 # -----------------------------
 # Embedding model
 # -----------------------------
 CLIP_MODEL: str = os.getenv("CLIP_MODEL")
-CLIP_DIMENSION: int = _get_int("CLIP_DIMENSION")
+CLIP_DIMENSION: int = _get_int("CLIP_DIMENSION", 512)
 TRANSFORMERS_CACHE_DIR = os.getenv("TRANSFORMERS_CACHE_DIR")
 
 # -----------------------------

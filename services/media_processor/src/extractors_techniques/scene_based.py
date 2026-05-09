@@ -33,17 +33,20 @@ def extract_frames_scene_detect(
     
     if not scene_list:
         logger.warning("No scenes detected, extracting first frame only")
-        # Fall back to single frame
+        # Fall back to a single frame so we still return something searchable.
         cap = cv2.VideoCapture(video_path)
         ret, frame = cap.read()
         cap.release()
-        
-        if ret:
-            _, buffer = cv2.imencode('.jpg', frame)
-            frame_base64 = base64.b64encode(buffer).decode('utf-8')
-            return [(0.0, frame_base64)]
-        else:
+
+        if not ret:
             raise ValueError("Could not read any frames from video")
+
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_base64 = base64.b64encode(buffer).decode('utf-8')
+        return {
+            "duration": duration,
+            "frames": [(0.0, frame_base64)],
+        }
     
     logger.info(f"Detected {len(scene_list)} scenes")
     
