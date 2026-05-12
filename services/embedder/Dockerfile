@@ -33,10 +33,7 @@ COPY ./services/embedder/src ./src
 # Install embedder service (torch is already satisfied above)
 RUN pip install --no-cache-dir -e .
 
-# Create cache directory for models
 RUN mkdir -p /app/model_cache
-ENV TRANSFORMERS_CACHE=/app/model_cache
-ENV HF_HOME=/app/model_cache
 
 # Expose port
 EXPOSE 8002

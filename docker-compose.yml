@@ -63,17 +63,12 @@ services:
         ports:
             - "8002:8002"
         environment:
-            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
-            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-            - MINIO_USE_SSL=${MINIO_USE_SSL}
-            - SUPABASE_DB_URL=${SUPABASE_DB_URL}
-            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-            - CLIP_MODEL_NAME=${CLIP_MODEL}
+            - CLIP_MODEL=${CLIP_MODEL}
+            - CLIP_DIMENSION=${CLIP_DIMENSION}
+            - EMBED_IMAGE_BATCH_SIZE=${EMBED_IMAGE_BATCH_SIZE}
             - TRANSFORMERS_CACHE=${TRANSFORMERS_CACHE}
-        depends_on:
-            - minio
+            - HF_HOME=${HF_HOME}
+            - HF_TOKEN=${HF_TOKEN}
         volumes:
             - ./services/embedder/src:/app/src  # Hot reload
             - embedder_cache:/app/model_cache  # Persist model cache

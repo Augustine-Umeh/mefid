@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from exports.db_clients.lifespan import lifespan
+
+from .lifespan import lifespan
 from .routes.embed_image import router as embed_image_router
 from .routes.embed_text import router as embed_text_router
 

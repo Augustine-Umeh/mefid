@@ -1,14 +1,29 @@
-from fastapi import APIRouter
-from exports.db_clients.lifespan import lifespan
+import asyncio
+
+from fastapi import APIRouter, HTTPException, Request
+from exports.schema.models import EmbedTextRequest, EmbedTextResponse
 from exports.utils.logger import get_logger
+
+from ..clip_service import ClipEmbeddingEngine
 
 router = APIRouter()
 logger = get_logger()
 
+
+def _get_engine(request: Request) -> ClipEmbeddingEngine:
+    engine = getattr(request.app.state, "clip_engine", None)
+    if engine is None:
+        raise HTTPException(status_code=503, detail="CLIP engine not initialized")
+    return engine
+
+
 @router.post("/")
-async def embed_text():
-    """
-    Root endpoint for embed text service.
-    """
-    logger.info("Embed Text Service Root Accessed")
-    return {"message": "Embed Text Service is running."}
+async def embed_text(request: Request, body: EmbedTextRequest) -> EmbedTextResponse:
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="text must not be empty")
+
+    engine = _get_engine(request)
+    logger.info("embed/text chars=%s", len(text))
+    embedding = await asyncio.to_thread(engine.embed_text, text)
+    return EmbedTextResponse(embedding=embedding)

@@ -99,9 +99,10 @@ DEFAULT_TOP_K: int = _get_int("DEFAULT_TOP_K", 10)
 # -----------------------------
 # Embedding model
 # -----------------------------
-CLIP_MODEL: str = os.getenv("CLIP_MODEL")
-CLIP_DIMENSION: int = _get_int("CLIP_DIMENSION", 512)
-TRANSFORMERS_CACHE_DIR = os.getenv("TRANSFORMERS_CACHE_DIR")
+CLIP_MODEL: str = os.getenv("CLIP_MODEL") or "openai/clip-vit-large-patch14-336"
+EMBED_IMAGE_BATCH_SIZE: int = _get_int("EMBED_IMAGE_BATCH_SIZE", 32)
+CLIP_DIMENSION: int = _get_int("CLIP_DIMENSION", 768)
+TRANSFORMERS_CACHE = os.getenv("TRANSFORMERS_CACHE")
 
 # -----------------------------
 # FAISS

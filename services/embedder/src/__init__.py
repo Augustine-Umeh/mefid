@@ -1,0 +1,1 @@
+"""Mefid embedder service package."""

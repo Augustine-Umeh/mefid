@@ -1,16 +1,14 @@
-from exports.utils.logger import get_logger
 from fastapi import APIRouter
+from exports.schema.models import AddVectorsRequest, AddVectorsResponse
+from exports.utils.logger import get_logger
 
 router = APIRouter()
 logger = get_logger()
 
+
 @router.post("/")
-async def extract_media():
-    """
-    Endpoint to add media embeddings to the indexer (faiss).
-    """
-    logger.info("Adding media embeddings to the indexer...")
-    # Placeholder for extraction logic
-    return {
-        "message": "Media embeddings extraction added to indexer."
-    }
+async def add_vectors(body: AddVectorsRequest) -> AddVectorsResponse:
+    """Stub: accept vectors so the API pipeline parses; real FAISS + DB writes come later."""
+    n = len(body.vectors)
+    logger.info("Indexer stub add_vectors media_id=%s count=%s", body.media_id, n)
+    return AddVectorsResponse(count=n)
