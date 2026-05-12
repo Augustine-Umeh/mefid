@@ -94,7 +94,11 @@ MINIO_USE_SSL = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
 # -----------------------------
 FRAME_INTERVAL: float = _get_float("FRAME_INTERVAL", 2.0)
 SCENE_THRESHOLD: int = _get_int("SCENE_THRESHOLD", 10)
+# Default number of nearest neighbours for search; also the maximum ``top_k``
+# allowed per request (API and indexer both clamp to this value).
 DEFAULT_TOP_K: int = _get_int("DEFAULT_TOP_K", 10)
+# Text search: drop FAISS hits below this inner-product score (cosine on L2-normalized CLIP).
+TEXT_SEARCH_MIN_SIMILARITY: float = _get_float("TEXT_SEARCH_MIN_SIMILARITY", 0.18)
 
 # -----------------------------
 # Embedding model
@@ -103,6 +107,14 @@ CLIP_MODEL: str = os.getenv("CLIP_MODEL") or "openai/clip-vit-large-patch14-336"
 EMBED_IMAGE_BATCH_SIZE: int = _get_int("EMBED_IMAGE_BATCH_SIZE", 32)
 CLIP_DIMENSION: int = _get_int("CLIP_DIMENSION", 768)
 TRANSFORMERS_CACHE = os.getenv("TRANSFORMERS_CACHE")
+
+# -----------------------------
+# Shared FastAPI lifespan (`exports.db_clients.lifespan`)
+# -----------------------------
+# Embedder: skip Supabase/MinIO; load CLIP only. Set in embedder container env.
+EXPORTS_LIFESPAN_EMBEDDER: bool = (
+    os.getenv("EXPORTS_LIFESPAN_EMBEDDER", "").lower() in ("1", "true", "yes")
+)
 
 # -----------------------------
 # FAISS

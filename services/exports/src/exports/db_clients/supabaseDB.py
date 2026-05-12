@@ -57,6 +57,13 @@ class SupabaseDB:
         )
         return MediaRow(**response.data[0]) if response.data else None
 
+    async def get_media_by_ids(self, media_ids: List[IdLike]) -> List[MediaRow]:
+        if not media_ids:
+            return []
+        ids = [_id(m) for m in media_ids]
+        response = await self.client.table("media").select("*").in_("id", ids).execute()
+        return [MediaRow(**m) for m in response.data]
+
     async def insert_media(self, media: MediaCreate) -> MediaRow:
         payload = media.model_dump(mode="json", exclude_none=True)
         response = await self.client.table("media").insert(payload).execute()
@@ -94,6 +101,13 @@ class SupabaseDB:
             .execute()
         )
         return FrameRow(**response.data[0]) if response.data else None
+
+    async def get_frames_by_ids(self, frame_ids: List[IdLike]) -> List[FrameRow]:
+        if not frame_ids:
+            return []
+        ids = [_id(f) for f in frame_ids]
+        response = await self.client.table("frames").select("*").in_("id", ids).execute()
+        return [FrameRow(**f) for f in response.data]
 
     async def insert_frame(self, frame: FrameCreate) -> FrameRow:
         payload = frame.model_dump(mode="json", exclude_none=True)
@@ -139,6 +153,19 @@ class SupabaseDB:
             .execute()
         )
         return EmbeddingRow(**response.data[0]) if response.data else None
+
+    async def get_embeddings_by_faiss_index_ids(
+        self, faiss_index_ids: List[int]
+    ) -> List[EmbeddingRow]:
+        if not faiss_index_ids:
+            return []
+        response = (
+            await self.client.table("embeddings")
+            .select("*")
+            .in_("faiss_index_id", faiss_index_ids)
+            .execute()
+        )
+        return [EmbeddingRow(**e) for e in response.data]
 
     async def insert_embedding(self, embedding: EmbeddingCreate) -> EmbeddingRow:
         payload = embedding.model_dump(mode="json")

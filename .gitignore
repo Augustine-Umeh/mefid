@@ -20,7 +20,7 @@ env/
 MILESTONE.md
 PROGRESS.md
 DECISIONS.md
-
+EDGECASES.md
 
 __pycache__/
 **/__pycache__/

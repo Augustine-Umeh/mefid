@@ -7,7 +7,7 @@ from exports.schema.models import (
     AddVectorItem,
     AddVectorsRequest,
     AddVectorsResponse,
-    SearchHit,
+    IndexerVectorHit,
     SearchVectorsRequest,
     SearchVectorsResponse,
 )
@@ -63,7 +63,7 @@ class IndexerClient:
             media_id=str(media_id),
             vectors=vectors,
         ).model_dump(mode="json")
-        response = await self.client.post("/add/", json=payload)
+        response = await self.client.post("vectors/add/", json=payload)
         response.raise_for_status()
         return AddVectorsResponse(**response.json())
 
@@ -71,7 +71,7 @@ class IndexerClient:
         self,
         embedding: List[float],
         top_k: int,
-    ) -> List[SearchHit]:
+    ) -> List[IndexerVectorHit]:
         """Nearest-neighbour search against the FAISS index."""
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
@@ -80,7 +80,7 @@ class IndexerClient:
             embedding=embedding,
             top_k=top_k,
         ).model_dump(mode="json")
-        response = await self.client.post("/search/", json=payload)
+        response = await self.client.post("vectors/search/", json=payload)
         response.raise_for_status()
         return SearchVectorsResponse(**response.json()).hits
 

@@ -167,6 +167,12 @@ class SearchRequest(BaseModel):
     video_query: Optional[UploadFile] = None
 
 
+class TextSearchRequest(BaseModel):
+    """JSON body for ``POST /search/text`` (no multipart)."""
+    text: str
+    top_k: Optional[int] = None
+
+
 # ============================================================
 # Pipeline DTOs
 # ------------------------------------------------------------
@@ -244,13 +250,12 @@ class SearchVectorsRequest(BaseModel):
     top_k: int
 
 
-class SearchHit(BaseModel):
-    frame_id: UUID
-    media_id: UUID
-    timestamp: float
-    frame_url: str
-    distance: float
+class IndexerVectorHit(BaseModel):
+    """One FAISS neighbour; the API joins ``faiss_index_id`` to frames via Supabase."""
+
+    faiss_index_id: int
+    similarity_score: float
 
 
 class SearchVectorsResponse(BaseModel):
-    hits: List[SearchHit]
+    hits: List[IndexerVectorHit]

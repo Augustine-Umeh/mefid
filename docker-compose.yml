@@ -10,6 +10,7 @@ services:
             - MEDIA_PROCESSOR_SERVICE=${MEDIA_PROCESSOR_SERVICE}
             - EMBEDDER_SERVICE=${EMBEDDER_SERVICE}
             - INDEXER_SERVICE=${INDEXER_SERVICE}
+            - DEFAULT_TOP_K=${DEFAULT_TOP_K}
             - MINIO_ENDPOINT=${MINIO_ENDPOINT}
             - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
             - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
@@ -17,9 +18,6 @@ services:
             - MINIO_USE_SSL=${MINIO_USE_SSL}
             - SUPABASE_DB_URL=${SUPABASE_DB_URL}
             - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-            - FRAME_INTERVAL=${FRAME_INTERVAL}
-            - SCENE_THRESHOLD=${SCENE_THRESHOLD}
-            - DEFAULT_TOP_K=${DEFAULT_TOP_K}
         depends_on:
             - media_processor
             - embedder
@@ -63,11 +61,11 @@ services:
         ports:
             - "8002:8002"
         environment:
+            - EXPORTS_LIFESPAN_EMBEDDER=1
             - CLIP_MODEL=${CLIP_MODEL}
             - CLIP_DIMENSION=${CLIP_DIMENSION}
             - EMBED_IMAGE_BATCH_SIZE=${EMBED_IMAGE_BATCH_SIZE}
             - TRANSFORMERS_CACHE=${TRANSFORMERS_CACHE}
-            - HF_HOME=${HF_HOME}
             - HF_TOKEN=${HF_TOKEN}
         volumes:
             - ./services/embedder/src:/app/src  # Hot reload
@@ -91,14 +89,10 @@ services:
         ports:
             - "8003:8003"
         environment:
-            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
-            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-            - MINIO_USE_SSL=${MINIO_USE_SSL}
             - SUPABASE_DB_URL=${SUPABASE_DB_URL}
             - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
             - FAISS_INDEX_PATH=${FAISS_INDEX_PATH}
+            - DEFAULT_TOP_K=${DEFAULT_TOP_K}
         depends_on:
             - minio
         volumes:
