@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
+from exports.faiss_store import FaissVectorStore
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 
@@ -37,8 +38,8 @@ async def search_vectors(
         )
     top_k = min(body.top_k, DEFAULT_TOP_K)
 
-    faiss_store = getattr(request.app.state, "faiss", None)
-    lock = getattr(request.app.state, "indexer_write_lock", None)
+    faiss_store: FaissVectorStore | None = getattr(request.app.state, "faiss", None)
+    lock: asyncio.Lock | None = getattr(request.app.state, "indexer_write_lock", None)
     if faiss_store is None or lock is None:
         raise HTTPException(
             status_code=503,

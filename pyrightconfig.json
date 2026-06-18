@@ -1,0 +1,24 @@
+{
+  "venvPath": "services/transcribe",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "services/transcribe",
+      "extraPaths": [
+        "services/exports/src",
+        "services/transcribe/src"
+      ]
+    },
+    {
+      "root": "services/api",
+      "extraPaths": [
+        "services/exports/src",
+        "services/api/src"
+      ]
+    },
+    {
+      "root": "services/exports",
+      "extraPaths": ["services/exports/src"]
+    }
+  ]
+}

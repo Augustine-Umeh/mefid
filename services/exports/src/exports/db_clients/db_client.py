@@ -1,5 +1,5 @@
 from supabase import acreate_client, AsyncClient
-from miniopy_async import Minio
+from miniopy_async.api import Minio
 from exports.schema.constants import (
     SUPABASE_DB_URL,
     SUPABASE_SERVICE_ROLE_KEY,

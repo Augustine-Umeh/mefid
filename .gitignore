@@ -14,13 +14,11 @@ env/
 **/api.egg-info/
 **/exports.egg-info/
 **/media_processor.egg-info/
+**/transcribe.egg-info/
 
 *.sql
 
-MILESTONE.md
-PROGRESS.md
-DECISIONS.md
-EDGECASES.md
+docs/
 
 __pycache__/
 **/__pycache__/

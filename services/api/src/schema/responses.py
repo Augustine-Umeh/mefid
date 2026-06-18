@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, HttpUrl
 
-from exports.schema.constants import MediaType, QueryType
+from exports.schema.constants import MediaType, QueryType, VectorType
 
 
 class UploadResponse(BaseModel):
@@ -13,15 +13,19 @@ class UploadResponse(BaseModel):
 
 
 class SearchResult(BaseModel):
-    """One row in a search result set, joining FAISS hits to media + frames."""
-    frame_id: UUID
+    """One row in a search result set, joining FAISS hits to media + frames/transcripts."""
     media_id: UUID
-    timestamp: float
-    frame_url: str
     similarity: float
     media_type: MediaType
     file_name: str
     file_url: str
+    vector_type: VectorType = VectorType.IMAGE
+    frame_id: Optional[UUID] = None
+    timestamp: Optional[float] = None
+    frame_url: Optional[str] = None
+    transcript_text: Optional[str] = None
+    start_time: Optional[float] = None
+    end_time: Optional[float] = None
 
 
 class SearchResponse(BaseModel):

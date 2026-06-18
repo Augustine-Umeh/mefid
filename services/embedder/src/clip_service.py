@@ -188,3 +188,35 @@ class ClipEmbeddingEngine:
             raw = self._model.get_text_features(**inputs)
         feats = _l2_normalize(_clip_features_to_tensor(raw))
         return feats[0].detach().cpu().float().tolist()
+
+    def embed_texts(self, texts: Sequence[str]) -> List[List[float]]:
+        cleaned = [(t or "").strip() for t in texts]
+        if not any(cleaned):
+            return [[] for _ in texts]
+
+        truncate_flags: List[bool] = []
+        for text in cleaned:
+            if not text:
+                truncate_flags.append(False)
+                continue
+            would_truncate = self._text_would_truncate(text)
+            if would_truncate:
+                logger.warning(
+                    "CLIP text input exceeds %s tokens; truncation will apply (chars=%s)",
+                    CLIP_MAX_LENGTH,
+                    len(text),
+                )
+            truncate_flags.append(would_truncate)
+
+        inputs = self._processor(
+            text=cleaned,
+            return_tensors="pt",
+            padding=True,
+            truncation=any(truncate_flags),
+            max_length=CLIP_MAX_LENGTH,
+        )
+        inputs = {k: v.to(self._device) for k, v in inputs.items()}
+        with torch.inference_mode():
+            raw = self._model.get_text_features(**inputs)
+        feats = _l2_normalize(_clip_features_to_tensor(raw))
+        return [row.detach().cpu().float().tolist() for row in feats]

@@ -1,28 +1,21 @@
 [project]
-name = "api"
+name = "transcribe"
 version = "0.1.0"
-description = "API service for Mefid platform"
+description = "Whisper transcription service for Mefid platform"
 readme = "README.md"
 requires-python = ">=3.11"
-
-# Dependencies for the API service
 dependencies = [
     "fastapi>=0.95.0",
     "uvicorn[standard]>=0.22.0",
-    "httpx>=0.24.0",
+    "faster-whisper>=1.0.0",
+    "numpy>=1.24.0",
     "pydantic>=2.0.0",
-    "minio>=7.1.0",
-    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
 ]
-
-[tool.pytest.ini_options]
-pythonpath = [".", "src", "../exports/src"]
-testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -34,3 +27,7 @@ build-backend = "setuptools.build_meta"
 [tool.black]
 line-length = 88
 target-version = ['py310']
+
+[tool.pytest.ini_options]
+pythonpath = [".", "../exports/src"]
+testpaths = ["tests"]

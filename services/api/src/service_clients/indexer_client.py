@@ -16,6 +16,10 @@ from exports.schema.models import (
 IdLike = Union[str, UUID]
 
 
+def _as_uuid(value: IdLike) -> UUID:
+    return value if isinstance(value, UUID) else UUID(value)
+
+
 class IndexerClient:
     """Client for the Indexer service.
 
@@ -60,7 +64,7 @@ class IndexerClient:
             raise RuntimeError("HTTP client is not initialized.")
 
         payload = AddVectorsRequest(
-            media_id=str(media_id),
+            media_id=_as_uuid(media_id),
             vectors=vectors,
         ).model_dump(mode="json")
         response = await self.client.post("vectors/add/", json=payload)

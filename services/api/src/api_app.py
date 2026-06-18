@@ -12,6 +12,7 @@ from .routes.health_route import router as health_router
 from .service_clients.media_processor_client import MediaProcessorClient
 from .service_clients.embedder_client import EmbedderClient
 from .service_clients.indexer_client import IndexerClient
+from .service_clients.transcribe_client import TranscribeClient
 
 logger = get_logger()
 
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
         app.state.media_processor : MediaProcessorClient
         app.state.embedder        : EmbedderClient
         app.state.indexer         : IndexerClient
+        app.state.transcribe      : TranscribeClient
 
     Routes pull these out of `request.app.state` instead of opening a
     fresh `httpx.AsyncClient` per request.
@@ -35,22 +37,30 @@ async def lifespan(app: FastAPI):
         media_processor = await MediaProcessorClient().connect()
         embedder = await EmbedderClient().connect()
         indexer = await IndexerClient().connect()
+        transcribe = await TranscribeClient().connect()
 
         app.state.media_processor = media_processor
         app.state.embedder = embedder
         app.state.indexer = indexer
+        app.state.transcribe = transcribe
         logger.info("✅ Downstream service clients ready.")
 
         try:
+            # yeild open the database connection
+            # so that the database connection is not closed until the application is shutdown
+            # this is important because the database connection is used by the downstream services
+            # and if the connection is closed, the downstream services will not be able to use the database
             yield
         finally:
             logger.info("Closing downstream service clients...")
             await media_processor.close()
             await embedder.close()
             await indexer.close()
+            await transcribe.close()
             app.state.media_processor = None
             app.state.embedder = None
             app.state.indexer = None
+            app.state.transcribe = None
             logger.info("✅ Downstream service clients closed.")
 
 

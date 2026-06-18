@@ -6,9 +6,13 @@ from exports.schema.models import (
     EmbedImageItem,
     EmbedImagesRequest,
     EmbedImagesResponse,
+    EmbedTextBatchRequest,
+    EmbedTextBatchResponse,
     EmbedTextRequest,
     EmbedTextResponse,
     EmbeddingResult,
+    EmbedTextItem,
+    TextEmbeddingResult,
 )
 
 
@@ -66,6 +70,18 @@ class EmbedderClient:
         response = await self.client.post("/embed/text/", json=payload)
         response.raise_for_status()
         return EmbedTextResponse(**response.json()).embedding
+
+    async def embed_texts(self, items: List[EmbedTextItem]) -> List[TextEmbeddingResult]:
+        """Embed a batch of transcript strings into CLIP vectors."""
+        if not self.client:
+            raise RuntimeError("HTTP client is not initialized.")
+        if not items:
+            return []
+
+        payload = EmbedTextBatchRequest(texts=items).model_dump(mode="json")
+        response = await self.client.post("/embed/text/batch", json=payload)
+        response.raise_for_status()
+        return EmbedTextBatchResponse(**response.json()).embeddings
 
     async def health_check(self) -> Dict[str, str]:
         if not self.client:

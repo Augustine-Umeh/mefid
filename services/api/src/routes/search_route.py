@@ -1,13 +1,15 @@
 """Search endpoints: text search wired; other modalities still stubs."""
 
 from typing import Dict, List, Optional
+from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 
-from exports.db_clients.supabaseDB import SupabaseDB
-from exports.schema.constants import DEFAULT_TOP_K, QueryType, TEXT_SEARCH_MIN_SIMILARITY
+from exports.db_clients.supabaseDB import IdLike, SupabaseDB
+from exports.schema.constants import DEFAULT_TOP_K, QueryType, VectorType
 from exports.schema.models import (
+    FrameRow,
     IndexerVectorHit,
     SearchQueryCreate,
     SearchRequest,
@@ -30,25 +32,58 @@ def _effective_top_k(requested: Optional[int]) -> int:
     return min(k, DEFAULT_TOP_K)
 
 
+def _nearest_frame(frames: List[FrameRow], timestamp: float) -> Optional[FrameRow]:
+    if not frames:
+        return None
+    return min(frames, key=lambda frame: abs(frame.timestamp - timestamp))
+
+
 async def _join_faiss_hits_to_results(
     supabase: SupabaseDB, hits: List[IndexerVectorHit]
 ) -> List[SearchResult]:
     """Map indexer hits (faiss id + score) to ``SearchResult`` rows via Supabase."""
     if not hits:
         return []
+
     score_by_faiss: Dict[int, float] = {
         h.faiss_index_id: h.similarity_score for h in hits
     }
     order = [h.faiss_index_id for h in hits]
-    rows = await supabase.get_embeddings_by_faiss_index_ids(order)
-    by_faiss = {e.faiss_index_id: e for e in rows}
+    embedding_rows = await supabase.get_embeddings_by_faiss_index_ids(order)
+    by_faiss = {e.faiss_index_id: e for e in embedding_rows}
 
-    frame_ids = list({by_faiss[fid].frame_id for fid in order if fid in by_faiss})
+    frame_ids = list[IdLike](
+        {
+            e.frame_id
+            for e in embedding_rows
+            if e.frame_id is not None
+        }
+    )
+    transcript_ids = list[IdLike](
+        {
+            e.transcript_id
+            for e in embedding_rows
+            if e.transcript_id is not None
+        }
+    )
+
     frames = await supabase.get_frames_by_ids(frame_ids)
     by_frame = {f.id: f for f in frames}
 
-    media_ids = list({f.media_id for f in frames})
-    medias = await supabase.get_media_by_ids(media_ids)
+    transcripts = await supabase.get_transcripts_by_ids(transcript_ids)
+    by_transcript = {t.id: t for t in transcripts}
+
+    media_ids: set[UUID] = set()
+    for frame in frames:
+        media_ids.add(frame.media_id)
+    for transcript in transcripts:
+        media_ids.add(transcript.media_id)
+
+    frames_by_media: Dict[UUID, List[FrameRow]] = {}
+    for media_id in media_ids:
+        frames_by_media[media_id] = await supabase.get_frames_by_media_id(media_id)
+
+    medias = await supabase.get_media_by_ids(list(media_ids))
     by_media = {m.id: m for m in medias}
 
     results: List[SearchResult] = []
@@ -56,27 +91,60 @@ async def _join_faiss_hits_to_results(
         emb = by_faiss.get(faiss_id)
         if emb is None:
             continue
-        frame = by_frame.get(emb.frame_id)
-        if frame is None:
-            continue
-        media = by_media.get(frame.media_id)
-        if media is None:
-            continue
+
         sim = score_by_faiss[faiss_id]
-        if sim < TEXT_SEARCH_MIN_SIMILARITY:
-            continue
-        results.append(
-            SearchResult(
-                frame_id=frame.id,
-                media_id=frame.media_id,
-                timestamp=frame.timestamp,
-                frame_url=frame.frame_url,
-                similarity=sim,
-                media_type=media.media_type,
-                file_name=media.file_name,
-                file_url=media.file_url,
+
+        if emb.vector_type == VectorType.IMAGE and emb.frame_id is not None:
+            frame = by_frame.get(emb.frame_id)
+            if frame is None:
+                continue
+            media = by_media.get(frame.media_id)
+            if media is None:
+                continue
+            results.append(
+                SearchResult(
+                    media_id=frame.media_id,
+                    similarity=sim,
+                    media_type=media.media_type,
+                    file_name=media.file_name,
+                    file_url=media.file_url,
+                    vector_type=VectorType.IMAGE,
+                    frame_id=frame.id,
+                    timestamp=frame.timestamp,
+                    frame_url=frame.frame_url,
+                )
             )
-        )
+            continue
+
+        if emb.vector_type == VectorType.TEXT and emb.transcript_id is not None:
+            transcript = by_transcript.get(emb.transcript_id)
+            if transcript is None:
+                continue
+            media = by_media.get(transcript.media_id)
+            if media is None:
+                continue
+            midpoint = (transcript.start_time + transcript.end_time) / 2.0
+            preview = _nearest_frame(
+                frames_by_media.get(transcript.media_id, []),
+                midpoint,
+            )
+            results.append(
+                SearchResult(
+                    media_id=transcript.media_id,
+                    similarity=sim,
+                    media_type=media.media_type,
+                    file_name=media.file_name,
+                    file_url=media.file_url,
+                    vector_type=VectorType.TEXT,
+                    frame_id=preview.id if preview else None,
+                    timestamp=midpoint,
+                    frame_url=preview.frame_url if preview else None,
+                    transcript_text=transcript.text,
+                    start_time=transcript.start_time,
+                    end_time=transcript.end_time,
+                )
+            )
+
     return results
 
 

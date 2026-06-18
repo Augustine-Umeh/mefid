@@ -1,7 +1,7 @@
 from urllib.parse import urljoin
 from exports.schema.constants import MINIO_BUCKET_NAME, MINIO_ENDPOINT
 from typing import BinaryIO
-from miniopy_async import Minio
+from miniopy_async.api import Minio
 
 
 class MinioDB:

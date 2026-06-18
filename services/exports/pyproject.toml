@@ -8,6 +8,7 @@ requires-python = ">=3.11"
 # Dependencies needed by your shared models
 dependencies = [
     "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
     "miniopy-async>=1.0.0",
     "supabase>=2.4.0",
     "faiss-cpu>=1.7.0",

@@ -10,6 +10,7 @@ services:
             - MEDIA_PROCESSOR_SERVICE=${MEDIA_PROCESSOR_SERVICE}
             - EMBEDDER_SERVICE=${EMBEDDER_SERVICE}
             - INDEXER_SERVICE=${INDEXER_SERVICE}
+            - TRANSCRIBE_SERVICE=${TRANSCRIBE_SERVICE}
             - DEFAULT_TOP_K=${DEFAULT_TOP_K}
             - MINIO_ENDPOINT=${MINIO_ENDPOINT}
             - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
@@ -22,6 +23,7 @@ services:
             - media_processor
             - embedder
             - indexer
+            - transcribe
             - minio
         volumes:
             - ./services/api/src:/app/src  # Hot reload for development
@@ -81,6 +83,34 @@ services:
         networks:
             - mefid-network
 
+    transcribe:
+        build:
+            context: .
+            dockerfile: services/transcribe/Dockerfile
+        container_name: mefid-transcribe
+        ports:
+            - "8004:8004"
+        environment:
+            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+            - MINIO_USE_SSL=${MINIO_USE_SSL}
+            - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+            - WHISPER_MODEL=${WHISPER_MODEL}
+            - WHISPER_DEVICE=${WHISPER_DEVICE}
+            - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE}
+            - WHISPER_CACHE=${WHISPER_CACHE}
+            - HF_TOKEN=${HF_TOKEN}
+        depends_on:
+            - minio
+        volumes:
+            - ./services/transcribe/src:/app/src
+            - whisper_cache:/app/model_cache
+        networks:
+            - mefid-network
+
     indexer:
         build:
             context: .
@@ -128,6 +158,8 @@ volumes:
     faiss_data:
         driver: local
     embedder_cache:
+        driver: local
+    whisper_cache:
         driver: local
 
 networks:

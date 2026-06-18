@@ -54,6 +54,7 @@ async def add_vectors(request: Request, body: AddVectorsRequest) -> AddVectorsRe
             rows.append(
                 EmbeddingCreate(
                     frame_id=item.frame_id,
+                    transcript_id=item.transcript_id,
                     faiss_index_id=faiss_index_id,
                     vector_type=item.vector_type,
                 )

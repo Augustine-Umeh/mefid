@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from service_clients.embedder_client import EmbedderClient
 from service_clients.indexer_client import IndexerClient
 from service_clients.media_processor_client import MediaProcessorClient
+from service_clients.transcribe_client import TranscribeClient
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -23,7 +24,8 @@ async def health_check_all():
         "api": {"status": "healthy"},
         "media_processor": {"status": "unknown"},
         "embedder": {"status": "unknown"},
-        "indexer": {"status": "unknown"}
+        "indexer": {"status": "unknown"},
+        "transcribe": {"status": "unknown"},
     }
     
     # Check Media Processor
@@ -52,6 +54,15 @@ async def health_check_all():
     except Exception as e:
         services["indexer"]["status"] = "unhealthy"
         services["indexer"]["error"] = str(e)
+
+    # Check Transcribe
+    try:
+        async with TranscribeClient() as client:
+            await client.health_check()
+            services["transcribe"]["status"] = "healthy"
+    except Exception as e:
+        services["transcribe"]["status"] = "unhealthy"
+        services["transcribe"]["error"] = str(e)
     
     # Overall status
     all_healthy = all(

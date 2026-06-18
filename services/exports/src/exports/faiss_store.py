@@ -21,15 +21,26 @@ class FaissVectorStore:
 
     @property
     def path(self) -> str:
+        """
+        Returns:
+            str: Path to the FAISS index file
+        """
         return self._path
 
     @property
     def ntotal(self) -> int:
+        """
+        Returns:
+            int: Number of vectors in the index
+        """
         if self._index is None:
             return 0
         return int(self._index.ntotal)
 
     def load(self) -> None:
+        """
+        Load the FAISS index from the file system.
+        """
         _ensure_parent_dir(self._path)
         if os.path.exists(self._path):
             self._index = faiss.read_index(self._path)
@@ -43,7 +54,12 @@ class FaissVectorStore:
             self._index = faiss.IndexFlatIP(self._dimension)
 
     def add(self, vectors: np.ndarray) -> List[int]:
-        """Append rows; returns new faiss_index_id values in row order."""
+        """
+        Append rows to the FAISS index.
+        vectors: numpy array of vectors to add to the index
+        Returns:
+            List[int]: List of new faiss_index_id values in row order
+        """
         if self._index is None:
             raise RuntimeError("FAISS index is not loaded.")
         if vectors.ndim != 2 or vectors.shape[1] != self._dimension:
@@ -55,12 +71,14 @@ class FaissVectorStore:
         start = int(self._index.ntotal)
         self._index.add(vectors)
         n = int(vectors.shape[0])
-        return list(range(start, start + n))
+        return list[int](range(start, start + n))
 
     def search(self, query: np.ndarray, top_k: int) -> List[Tuple[int, float]]:
-        """Top-``top_k`` inner products (cosine on L2-normalized query/vectors).
-
-        Returns ``(faiss_index_id, similarity_score)`` sorted best-first.
+        """
+        query: embedding vector to search for in the index
+        top_k: number of nearest neighbors to return
+        Returns:
+            List[Tuple[int, float]]: List of tuples containing the index of the nearest neighbor and the similarity score
         """
         if self._index is None:
             raise RuntimeError("FAISS index is not loaded.")
@@ -86,6 +104,9 @@ class FaissVectorStore:
         return out
 
     def save(self) -> None:
+        """
+        Save the FAISS index to the file system.
+        """
         if self._index is None:
             return
         _ensure_parent_dir(self._path)
@@ -93,6 +114,10 @@ class FaissVectorStore:
 
 
 def _ensure_parent_dir(path: str) -> None:
+    """
+    Ensure the parent directory of the FAISS index file exists.
+    path: path to the FAISS index file
+    """
     parent = os.path.dirname(os.path.abspath(path))
     if parent:
         os.makedirs(parent, exist_ok=True)

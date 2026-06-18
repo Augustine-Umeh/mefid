@@ -13,6 +13,7 @@ from exports.schema.constants import (
 from exports.schema.models import (
     AddVectorItem,
     EmbedImageItem,
+    EmbedTextItem,
     MediaUpdate,
     UploadImageRequest,
     UploadVideoRequest,
@@ -23,6 +24,7 @@ from src.schema.responses import UploadResponse
 from ..service_clients.embedder_client import EmbedderClient
 from ..service_clients.indexer_client import IndexerClient
 from ..service_clients.media_processor_client import MediaProcessorClient
+from ..service_clients.transcribe_client import TranscribeClient
 
 router = APIRouter()
 logger = get_logger()
@@ -79,7 +81,7 @@ async def upload_video(
     description: Optional[str] = Form(None),
     duration_seconds: Optional[float] = Form(None),
     source_url: Optional[str] = Form(None),
-    extraction_strategy: Optional[str] = Form("fixed_interval"),
+    extraction_strategy: Optional[str] = Form("scene_detect"),
 ) -> UploadResponse:
     """Stream a video upload to MinIO, then extract → embed → index.
 
@@ -104,6 +106,7 @@ async def upload_video(
     media_processor: MediaProcessorClient = request.app.state.media_processor
     embedder: EmbedderClient = request.app.state.embedder
     indexer: IndexerClient = request.app.state.indexer
+    transcribe: TranscribeClient = request.app.state.transcribe
 
     media_id: str | None = None
 
@@ -169,6 +172,42 @@ async def upload_video(
         logger.info(
             f"Indexed {index_result.count} vectors for media_id={media_id}"
         )
+
+        # ---- Transcribe + index transcript vectors (non-fatal) --------
+        try:
+            transcribed = await transcribe.transcribe(
+                video_object_key=object_name,
+                media_id=extracted.media_id,
+                file_name=object_name,
+            )
+            if transcribed.segments:
+                embed_items = [
+                    EmbedTextItem(transcript_id=seg.id, text=seg.text)
+                    for seg in transcribed.segments
+                ]
+                text_embeddings = await embedder.embed_texts(embed_items)
+                transcript_index_input = [
+                    AddVectorItem(
+                        transcript_id=result.transcript_id,
+                        embedding=result.embedding,
+                        vector_type=VectorType.TEXT,
+                    )
+                    for result in text_embeddings
+                ]
+                transcript_index_result = await indexer.add_vectors(
+                    media_id=extracted.media_id,
+                    vectors=transcript_index_input,
+                )
+                logger.info(
+                    "Indexed %s transcript vectors for media_id=%s",
+                    transcript_index_result.count,
+                    media_id,
+                )
+        except Exception:
+            logger.exception(
+                "Transcription pipeline failed (non-fatal); media_id=%s",
+                media_id,
+            )
 
         # ---- Flip status to ready --------------------------------------
         await supabase.update_media(

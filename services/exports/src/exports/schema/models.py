@@ -18,7 +18,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import UploadFile
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from .constants import (
     ContentType,
@@ -60,7 +60,8 @@ class FrameRow(BaseModel):
 class EmbeddingRow(BaseModel):
     """Row in `public.embeddings`. Vectors live in FAISS, not here."""
     id: UUID
-    frame_id: UUID
+    frame_id: Optional[UUID] = None
+    transcript_id: Optional[UUID] = None
     faiss_index_id: int
     vector_type: VectorType
     created_at: datetime
@@ -114,9 +115,18 @@ class FrameCreate(BaseModel):
 
 
 class EmbeddingCreate(BaseModel):
-    frame_id: UUID
+    frame_id: Optional[UUID] = None
+    transcript_id: Optional[UUID] = None
     faiss_index_id: int
     vector_type: VectorType
+
+    @model_validator(mode="after")
+    def exactly_one_source(self) -> "EmbeddingCreate":
+        has_frame = self.frame_id is not None
+        has_transcript = self.transcript_id is not None
+        if has_frame == has_transcript:
+            raise ValueError("Exactly one of frame_id or transcript_id must be set")
+        return self
 
 
 class TranscriptCreate(BaseModel):
@@ -229,11 +239,58 @@ class EmbedTextResponse(BaseModel):
     embedding: List[float]
 
 
+class EmbedTextItem(BaseModel):
+    transcript_id: UUID
+    text: str
+
+
+class EmbedTextBatchRequest(BaseModel):
+    texts: List[EmbedTextItem]
+
+
+class TextEmbeddingResult(BaseModel):
+    transcript_id: UUID
+    embedding: List[float]
+
+
+class EmbedTextBatchResponse(BaseModel):
+    embeddings: List[TextEmbeddingResult]
+
+
+# ---- transcribe I/O ----
+class TranscriptSegmentData(BaseModel):
+    id: UUID
+    start_time: float
+    end_time: float
+    text: str
+
+
+class TranscribeRequest(BaseModel):
+    video_object_key: str
+    media_id: UUID
+    file_name: str
+
+
+class TranscribeResponse(BaseModel):
+    media_id: UUID
+    segments: List[TranscriptSegmentData]
+    segment_count: int
+
+
 # ---- indexer I/O ----
 class AddVectorItem(BaseModel):
-    frame_id: UUID
+    frame_id: Optional[UUID] = None
+    transcript_id: Optional[UUID] = None
     embedding: List[float]
     vector_type: VectorType = VectorType.IMAGE
+
+    @model_validator(mode="after")
+    def exactly_one_source(self) -> "AddVectorItem":
+        has_frame = self.frame_id is not None
+        has_transcript = self.transcript_id is not None
+        if has_frame == has_transcript:
+            raise ValueError("Exactly one of frame_id or transcript_id must be set")
+        return self
 
 
 class AddVectorsRequest(BaseModel):

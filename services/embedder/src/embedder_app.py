@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from exports.db_clients.lifespan import lifespan
 from .routes.embed_image import router as embed_image_router
 from .routes.embed_text import router as embed_text_router
+from .routes.embed_text_batch import router as embed_text_batch_router
 
 app = FastAPI(
     title="Mefid Embedder Service",
@@ -16,6 +17,7 @@ app = FastAPI(
 # -------------------------------
 app.include_router(embed_image_router, prefix="/embed/images", tags=["Embed Image"])
 app.include_router(embed_text_router, prefix="/embed/text", tags=["Embed Text"])
+app.include_router(embed_text_batch_router, prefix="/embed/text", tags=["Embed Text"])
 
 # -------------------------------
 # Root Route
