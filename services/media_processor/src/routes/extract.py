@@ -36,8 +36,7 @@ from exports.schema.models import (
 )
 from exports.utils.logger import get_logger
 
-from ..extractors_techniques.fixed_interval import extract_frames_fixed_interval
-from ..extractors_techniques.scene_based import extract_frames_scene_detect
+from ..extractors_techniques.hybrid import extract_frames_hybrid
 
 router = APIRouter()
 logger = get_logger()
@@ -56,19 +55,32 @@ def _frame_object_key(media_id: str, sequence_number: int) -> str:
     return f"frames/{media_id}/{sequence_number:04d}.jpg"
 
 
+def _unpack_frame(
+    frame_item: tuple[float, str] | tuple[float, str, str | None],
+) -> tuple[float, str, str | None]:
+    if len(frame_item) == 3:
+        return frame_item[0], frame_item[1], frame_item[2]
+    return frame_item[0], frame_item[1], None
+
+
 @router.post("/", response_model=ExtractFramesResponse)
 async def extract_frames(
     request: Request,
     extract_req: ExtractRequest,
     strategy: ExtractionStrategy = Query(...),
-    interval_seconds: float | None = Query(None),
     threshold: int | None = Query(None),
 ):
     """Extract frames from a video and persist them."""
-    if strategy is ExtractionStrategy.FIXED_INTERVAL and interval_seconds is None:
-        raise HTTPException(400, "interval_seconds is required for fixed_interval")
-    if strategy is ExtractionStrategy.SCENE_DETECT and threshold is None:
-        raise HTTPException(400, "threshold is required for scene_detect")
+    if strategy in (ExtractionStrategy.FIXED_INTERVAL, ExtractionStrategy.SCENE_DETECT):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"extraction strategy '{strategy.value}' is no longer supported; "
+                "use 'hybrid'."
+            ),
+        )
+    if threshold is None:
+        raise HTTPException(400, "threshold is required for hybrid")
 
     minio: MinioDB = request.app.state.minio
     supabase: SupabaseDB = request.app.state.supabase
@@ -86,19 +98,13 @@ async def extract_frames(
     media_id: str | None = None
     try:
         # ---- 2. Extract frames in-memory -------------------------------
-        if strategy is ExtractionStrategy.FIXED_INTERVAL:
-            extraction = extract_frames_fixed_interval(
-                video_path=temp_path,
-                interval_seconds=interval_seconds,
-            )
-        else:
-            extraction = extract_frames_scene_detect(
-                video_path=temp_path,
-                threshold=threshold,
-            )
+        extraction = extract_frames_hybrid(
+            video_path=temp_path,
+            threshold=threshold,
+        )
 
         duration = float(extraction["duration"])
-        raw_frames: list[tuple[float, str]] = extraction["frames"]
+        raw_frames = extraction["frames"]
         logger.info(f"Extracted {len(raw_frames)} frames; duration={duration:.2f}s")
 
         # ---- 3. Insert media row (processing) --------------------------
@@ -118,7 +124,8 @@ async def extract_frames(
         # ---- 4. Upload each frame to MinIO + collect FrameCreate ------
         frame_creates: list[FrameCreate] = []
         frame_urls: list[str] = []
-        for seq, (timestamp, frame_b64) in enumerate(raw_frames):
+        for seq, frame_item in enumerate(raw_frames):
+            timestamp, frame_b64, phash = _unpack_frame(frame_item)
             object_key = _frame_object_key(media_id, seq)
             jpeg_bytes = base64.b64decode(frame_b64)
             frame_url = await minio.upload_file(
@@ -133,6 +140,7 @@ async def extract_frames(
                     timestamp=timestamp,
                     frame_url=frame_url,
                     sequence_number=seq,
+                    phash=phash,
                 )
             )
 
@@ -153,7 +161,7 @@ async def extract_frames(
                 sequence_number=row.sequence_number,
                 timestamp=row.timestamp,
                 frame_url=row.frame_url,
-                frame_data=raw_frames[idx][1],  # base64 of the same frame
+                frame_data=_unpack_frame(raw_frames[idx])[1],
             )
             for idx, row in enumerate(frame_rows)
         ]

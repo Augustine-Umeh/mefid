@@ -6,7 +6,7 @@ from exports.faiss_store import FaissVectorStore
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 
-from exports.schema.constants import CLIP_DIMENSION, DEFAULT_TOP_K
+from exports.schema.constants import CLIP_DIMENSION, FILTERED_SEARCH_MAX_K
 from exports.schema.models import (
     IndexerVectorHit,
     SearchVectorsRequest,
@@ -36,7 +36,7 @@ async def search_vectors(
             status_code=400,
             detail="top_k must be at least 1",
         )
-    top_k = min(body.top_k, DEFAULT_TOP_K)
+    top_k = min(body.top_k, FILTERED_SEARCH_MAX_K)
 
     faiss_store: FaissVectorStore | None = getattr(request.app.state, "faiss", None)
     lock: asyncio.Lock | None = getattr(request.app.state, "indexer_write_lock", None)

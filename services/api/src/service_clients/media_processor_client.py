@@ -66,23 +66,7 @@ class MediaProcessorClient:
         response.raise_for_status()
         return ExtractFramesResponse(**response.json())
 
-    async def extract_frames_fixed_interval(
-        self,
-        *,
-        video_object_key: str,
-        file_url: str,
-        file_name: str,
-        interval_seconds: float,
-    ) -> ExtractFramesResponse:
-        return await self._extract(
-            strategy=ExtractionStrategy.FIXED_INTERVAL,
-            params_extra={"interval_seconds": interval_seconds},
-            video_object_key=video_object_key,
-            file_url=file_url,
-            file_name=file_name,
-        )
-
-    async def extract_frames_scene_detect(
+    async def extract_frames_hybrid(
         self,
         *,
         video_object_key: str,
@@ -91,7 +75,7 @@ class MediaProcessorClient:
         threshold: int,
     ) -> ExtractFramesResponse:
         return await self._extract(
-            strategy=ExtractionStrategy.SCENE_DETECT,
+            strategy=ExtractionStrategy.HYBRID,
             params_extra={"threshold": threshold},
             video_object_key=video_object_key,
             file_url=file_url,

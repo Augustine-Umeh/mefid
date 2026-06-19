@@ -47,6 +47,12 @@ services:
             - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
             - FRAME_INTERVAL=${FRAME_INTERVAL}
             - SCENE_THRESHOLD=${SCENE_THRESHOLD}
+            - PHASH_SIZE=${PHASH_SIZE}
+            - PHASH_MULTIPLIER=${PHASH_MULTIPLIER}
+            - PHASH_WARMUP_FRAMES=${PHASH_WARMUP_FRAMES}
+            - FLOOR_INTERVAL=${FLOOR_INTERVAL}
+            - MIN_SAMPLE_GAP=${MIN_SAMPLE_GAP}
+            - PHASH_FALLBACK_THRESHOLD=${PHASH_FALLBACK_THRESHOLD}
         depends_on:
             - minio
         volumes:

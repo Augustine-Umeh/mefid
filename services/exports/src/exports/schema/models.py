@@ -181,6 +181,7 @@ class TextSearchRequest(BaseModel):
     """JSON body for ``POST /search/text`` (no multipart)."""
     text: str
     top_k: Optional[int] = None
+    vector_type: Optional[VectorType] = None
 
 
 # ============================================================

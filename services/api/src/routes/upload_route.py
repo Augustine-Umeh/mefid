@@ -5,7 +5,6 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from exports.db_clients.minioDB import MinioDB
 from exports.db_clients.supabaseDB import SupabaseDB
 from exports.schema.constants import (
-    FRAME_INTERVAL,
     SCENE_THRESHOLD,
     MediaStatus,
     VectorType,
@@ -81,7 +80,7 @@ async def upload_video(
     description: Optional[str] = Form(None),
     duration_seconds: Optional[float] = Form(None),
     source_url: Optional[str] = Form(None),
-    extraction_strategy: Optional[str] = Form("scene_detect"),
+    extraction_strategy: Optional[str] = Form("hybrid"),
 ) -> UploadResponse:
     """Stream a video upload to MinIO, then extract → embed → index.
 
@@ -119,28 +118,26 @@ async def upload_video(
         )
 
         # ---- Extract frames (also inserts media + frames rows) ---------
-        if extraction_strategy == "fixed_interval":
-            extracted = await media_processor.extract_frames_fixed_interval(
-                video_object_key=object_name,
-                file_url=file_url,
-                file_name=object_name,
-                interval_seconds=FRAME_INTERVAL,
-            )
-        elif extraction_strategy == "scene_detect":
-            extracted = await media_processor.extract_frames_scene_detect(
-                video_object_key=object_name,
-                file_url=file_url,
-                file_name=object_name,
-                threshold=SCENE_THRESHOLD,
-            )
-        else:
+        if extraction_strategy in ("fixed_interval", "scene_detect"):
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Unsupported extraction strategy. "
-                    "Use 'fixed_interval' or 'scene_detect'."
+                    f"extraction strategy '{extraction_strategy}' is no longer "
+                    "supported; use 'hybrid'."
                 ),
             )
+        if extraction_strategy not in (None, "hybrid"):
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported extraction strategy. Use 'hybrid'.",
+            )
+
+        extracted = await media_processor.extract_frames_hybrid(
+            video_object_key=object_name,
+            file_url=file_url,
+            file_name=object_name,
+            threshold=SCENE_THRESHOLD,
+        )
 
         media_id = str(extracted.media_id)
         logger.info(

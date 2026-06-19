@@ -7,7 +7,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 
 from exports.db_clients.supabaseDB import IdLike, SupabaseDB
-from exports.schema.constants import DEFAULT_TOP_K, QueryType, VectorType
+from exports.schema.constants import DEFAULT_TOP_K, FILTERED_SEARCH_MAX_K, QueryType, VectorType
 from exports.schema.models import (
     FrameRow,
     IndexerVectorHit,
@@ -38,8 +38,17 @@ def _nearest_frame(frames: List[FrameRow], timestamp: float) -> Optional[FrameRo
     return min(frames, key=lambda frame: abs(frame.timestamp - timestamp))
 
 
+def _faiss_top_k(requested_top_k: int, vector_type_filter: Optional[VectorType]) -> int:
+    """When filtering by vector type, over-fetch from FAISS before post-filtering."""
+    if vector_type_filter is None:
+        return requested_top_k
+    return FILTERED_SEARCH_MAX_K
+
+
 async def _join_faiss_hits_to_results(
-    supabase: SupabaseDB, hits: List[IndexerVectorHit]
+    supabase: SupabaseDB,
+    hits: List[IndexerVectorHit],
+    vector_type_filter: Optional[VectorType] = None,
 ) -> List[SearchResult]:
     """Map indexer hits (faiss id + score) to ``SearchResult`` rows via Supabase."""
     if not hits:
@@ -90,6 +99,9 @@ async def _join_faiss_hits_to_results(
     for faiss_id in order:
         emb = by_faiss.get(faiss_id)
         if emb is None:
+            continue
+
+        if vector_type_filter is not None and emb.vector_type != vector_type_filter:
             continue
 
         sim = score_by_faiss[faiss_id]
@@ -156,6 +168,8 @@ async def search_by_text(request: Request, body: TextSearchRequest) -> SearchRes
         raise HTTPException(status_code=422, detail="text must not be empty")
 
     top_k = _effective_top_k(body.top_k)
+    vector_type_filter = body.vector_type
+    faiss_k = _faiss_top_k(top_k, vector_type_filter)
     embedder: EmbedderClient = request.app.state.embedder
     indexer: IndexerClient = request.app.state.indexer
     supabase: SupabaseDB = request.app.state.supabase
@@ -170,7 +184,7 @@ async def search_by_text(request: Request, body: TextSearchRequest) -> SearchRes
         ) from None
 
     try:
-        hits = await indexer.search_vectors(embedding, top_k)
+        hits = await indexer.search_vectors(embedding, faiss_k)
     except httpx.HTTPError:
         logger.exception("Indexer search failed")
         raise HTTPException(
@@ -178,7 +192,11 @@ async def search_by_text(request: Request, body: TextSearchRequest) -> SearchRes
             detail="Indexer search failed.",
         ) from None
 
-    results = await _join_faiss_hits_to_results(supabase, hits)
+    results = await _join_faiss_hits_to_results(
+        supabase, hits, vector_type_filter=vector_type_filter
+    )
+    if vector_type_filter is not None:
+        results = results[:top_k]
     try:
         await supabase.insert_search_query(
             SearchQueryCreate(query_type=QueryType.TEXT, query_text=text)
