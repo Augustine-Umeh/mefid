@@ -1,7 +1,7 @@
 import httpx
 from typing import Dict, List
 
-from exports.schema.constants import EMBEDDER_SERVICE
+from exports.schema.constants import EMBED_IMAGE_BATCH_SIZE, EMBEDDER_SERVICE
 from exports.schema.models import (
     EmbedImageItem,
     EmbedImagesRequest,
@@ -31,7 +31,7 @@ class EmbedderClient:
 
     async def connect(self) -> "EmbedderClient":
         if self.client is None:
-            self.client = httpx.AsyncClient(base_url=self.base_url, timeout=300.0)
+            self.client = httpx.AsyncClient(base_url=self.base_url, timeout=1300.0)
         return self
 
     async def close(self) -> None:
@@ -55,11 +55,18 @@ class EmbedderClient:
         """
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
+        if not frames:
+            return []
 
-        payload = EmbedImagesRequest(frames=frames).model_dump(mode="json")
-        response = await self.client.post("/embed/images/", json=payload)
-        response.raise_for_status()
-        return EmbedImagesResponse(**response.json()).embeddings
+        chunk_size = max(1, EMBED_IMAGE_BATCH_SIZE)
+        results: List[EmbeddingResult] = []
+        for start in range(0, len(frames), chunk_size):
+            chunk = frames[start : start + chunk_size]
+            payload = EmbedImagesRequest(frames=chunk).model_dump(mode="json")
+            response = await self.client.post("/embed/images/", json=payload)
+            response.raise_for_status()
+            results.extend(EmbedImagesResponse(**response.json()).embeddings)
+        return results
 
     async def embed_text(self, text: str) -> List[float]:
         """Embed a search query string into a single CLIP vector."""

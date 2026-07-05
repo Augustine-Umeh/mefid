@@ -115,10 +115,8 @@ SCENE_THRESHOLD: int = _get_int("SCENE_THRESHOLD", 10)
 # Hybrid frame sampling (media_processor service)
 PHASH_SIZE: int = _get_int("PHASH_SIZE", 8)
 PHASH_MULTIPLIER: float = _get_float("PHASH_MULTIPLIER", 1.5)
-PHASH_WARMUP_FRAMES: int = _get_int("PHASH_WARMUP_FRAMES", 30)
 FLOOR_INTERVAL: float = _get_float("FLOOR_INTERVAL", 5.0)
 MIN_SAMPLE_GAP: float = _get_float("MIN_SAMPLE_GAP", 1.0)
-PHASH_FALLBACK_THRESHOLD: int = _get_int("PHASH_FALLBACK_THRESHOLD", 10)
 # Default number of nearest neighbours for search; also the maximum ``top_k``
 # allowed per request (API and indexer both clamp to this value).
 DEFAULT_TOP_K: int = _get_int("DEFAULT_TOP_K", 25)
@@ -130,7 +128,7 @@ FILTERED_SEARCH_MAX_K: int = _get_int("FILTERED_SEARCH_MAX_K", 500)
 # Embedding model (embedder service)
 # -----------------------------
 CLIP_MODEL: str = _get_env("CLIP_MODEL", "")
-EMBED_IMAGE_BATCH_SIZE: int = _get_int("EMBED_IMAGE_BATCH_SIZE", 32)
+EMBED_IMAGE_BATCH_SIZE: int = _get_int("EMBED_IMAGE_BATCH_SIZE", 16)
 CLIP_DIMENSION: int = _get_int("CLIP_DIMENSION", 768)
 # Safe margin under CLIP's 77-token limit when chunking transcript text.
 CLIP_TEXT_CHUNK_MAX_TOKENS: int = _get_int("CLIP_TEXT_CHUNK_MAX_TOKENS", 70)

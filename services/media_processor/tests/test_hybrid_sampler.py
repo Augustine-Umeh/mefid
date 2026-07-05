@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import cv2
 import numpy as np
 
 from sampling.deduplication import SampleGuard
@@ -20,42 +21,78 @@ def _make_frame(value: int) -> np.ndarray:
     return np.full((32, 32, 3), value, dtype=np.uint8)
 
 
-def test_process_scene_samples_boundary_and_floor() -> None:
-    frames = [_make_frame(i * 40) for i in range(6)]
-    read_results = [(True, frame) for frame in frames] + [(False, None)]
-
+def _make_cap(frames: list[np.ndarray]) -> MagicMock:
+    """Mock capture that supports seek + sequential read for two-pass sampling."""
     cap = MagicMock()
-    cap.read.side_effect = read_results
+    pos = [0]
+
+    def set_prop(prop: int, val: float) -> None:
+        if prop == cv2.CAP_PROP_POS_FRAMES:
+            pos[0] = int(val)
+
+    def read():
+        i = pos[0]
+        if 0 <= i < len(frames):
+            pos[0] = i + 1
+            return True, frames[i]
+        return False, None
+
+    cap.set.side_effect = set_prop
+    cap.read.side_effect = read
+    return cap
+
+
+def test_process_scene_samples_boundary_and_floor() -> None:
+    # 8 identical frames → 7 diffs → adaptive path; static content relies on floor.
+    frames = [_make_frame(0)] * 8
+    cap = _make_cap(frames)
 
     guard = SampleGuard(min_gap_seconds=0.0)
     sampled = _process_scene(
         cap=cap,
         fps=1.0,
         scene_start=0,
-        scene_end=5,
+        scene_end=7,
         boundary_idxs={0},
         guard=guard,
     )
 
     triggers = {sf.trigger for sf in sampled}
     assert "scene_boundary" in triggers
-    assert len(sampled) >= 2
+    assert "floor" in triggers
 
 
-def test_sample_guard_dedupes_close_timestamps() -> None:
-    frames = [_make_frame(0)] * 4
-    read_results = [(True, frame) for frame in frames] + [(False, None)]
-
-    cap = MagicMock()
-    cap.read.side_effect = read_results
+def test_short_scene_keeps_every_frame() -> None:
+    """Scenes with fewer than 7 diffs keep all frames (no threshold fallback)."""
+    frames = [_make_frame(i * 40) for i in range(7)]  # 6 diffs
+    cap = _make_cap(frames)
 
     guard = SampleGuard(min_gap_seconds=10.0)
     sampled = _process_scene(
         cap=cap,
         fps=1.0,
         scene_start=0,
-        scene_end=3,
-        boundary_idxs={0, 1, 2, 3},
+        scene_end=6,
+        boundary_idxs={0},
+        guard=guard,
+    )
+
+    assert len(sampled) == 7
+    assert sampled[0].trigger == "scene_boundary"
+
+
+def test_sample_guard_dedupes_close_timestamps() -> None:
+    # 8 frames → 7 diffs → adaptive threshold path, guard applies.
+    frames = [_make_frame(0)] * 8
+    cap = _make_cap(frames)
+
+    guard = SampleGuard(min_gap_seconds=10.0)
+    sampled = _process_scene(
+        cap=cap,
+        fps=1.0,
+        scene_start=0,
+        scene_end=7,
+        boundary_idxs={0, 1, 2, 3, 4, 5, 6, 7},
         guard=guard,
     )
 

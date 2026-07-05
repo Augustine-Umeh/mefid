@@ -15,10 +15,13 @@ env/
 **/exports.egg-info/
 **/media_processor.egg-info/
 **/transcribe.egg-info/
+**/caption.egg-info/
 
 *.sql
 
 docs/
+
+videos/
 
 __pycache__/
 **/__pycache__/

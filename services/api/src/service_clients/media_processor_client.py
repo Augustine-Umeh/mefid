@@ -25,7 +25,7 @@ class MediaProcessorClient:
 
     async def connect(self) -> "MediaProcessorClient":
         if self.client is None:
-            self.client = httpx.AsyncClient(base_url=self.base_url, timeout=300.0)
+            self.client = httpx.AsyncClient(base_url=self.base_url, timeout=1300.0)
         return self
 
     async def close(self) -> None:

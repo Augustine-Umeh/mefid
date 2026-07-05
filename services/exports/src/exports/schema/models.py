@@ -77,6 +77,16 @@ class TranscriptRow(BaseModel):
     created_at: datetime
 
 
+class CaptionRow(BaseModel):
+    """Row in `public.captions` — one visual caption per time window."""
+    id: UUID
+    media_id: UUID
+    start_time: float
+    end_time: float
+    text: str
+    created_at: datetime
+
+
 class SearchQueryRow(BaseModel):
     """Row in `public.search_queries`."""
     id: UUID
@@ -130,6 +140,13 @@ class EmbeddingCreate(BaseModel):
 
 
 class TranscriptCreate(BaseModel):
+    media_id: UUID
+    start_time: float
+    end_time: float
+    text: str
+
+
+class CaptionCreate(BaseModel):
     media_id: UUID
     start_time: float
     end_time: float

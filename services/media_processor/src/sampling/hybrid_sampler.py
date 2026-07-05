@@ -9,16 +9,14 @@ from scenedetect import ContentDetector, detect
 from exports.schema.constants import (
     FLOOR_INTERVAL,
     MIN_SAMPLE_GAP,
-    PHASH_FALLBACK_THRESHOLD,
     PHASH_MULTIPLIER,
     PHASH_SIZE,
-    PHASH_WARMUP_FRAMES,
 )
 from exports.utils.logger import get_logger
 
 from .adaptive_threshold import compute_adaptive_threshold
 from .deduplication import SampleGuard
-from .phash_utils import compute_consecutive_diffs, compute_phash
+from .phash_utils import compute_phash
 
 logger = get_logger()
 
@@ -96,12 +94,10 @@ def _process_scene(
     boundary_idxs: set[int],
     guard: SampleGuard,
 ) -> List[SampledFrame]:
-    sampled: List[SampledFrame] = []
-    floor_interval_frames = max(int(FLOOR_INTERVAL * fps), 1)
-    last_floor_idx = scene_start
-
-    warmup_end = min(scene_start + PHASH_WARMUP_FRAMES, scene_end + 1)
-    warmup_hashes: List = []
+    # Pass 1: hash every frame, accumulate consecutive diffs, no raw frames retained.
+    frame_indices: List[int] = []
+    hashes: List = []
+    diffs: List[int] = []
     prev_hash = None
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, scene_start)
@@ -111,44 +107,71 @@ def _process_scene(
         if not ret:
             break
 
-        timestamp = frame_idx / fps
         curr_hash = compute_phash(frame, hash_size=PHASH_SIZE)
+        if prev_hash is not None:
+            diffs.append(curr_hash - prev_hash)
 
-        if frame_idx < warmup_end:
-            warmup_hashes.append(curr_hash)
+        frame_indices.append(frame_idx)
+        hashes.append(curr_hash)
+        prev_hash = curr_hash
 
-        threshold = compute_adaptive_threshold(
-            diffs=compute_consecutive_diffs(warmup_hashes),
-            multiplier=PHASH_MULTIPLIER,
-            fallback=PHASH_FALLBACK_THRESHOLD,
-        )
+    if not frame_indices:
+        return []
 
-        trigger: Optional[str] = None
+    threshold = compute_adaptive_threshold(
+        diffs=diffs,
+        multiplier=PHASH_MULTIPLIER,
+    )
 
-        if frame_idx in boundary_idxs:
-            trigger = "scene_boundary"
+    # Pass 2a: decide which frames to keep.
+    # Too few diffs for stats — keep every frame (no fixed-threshold fallback).
+    selected: List[Tuple[int, str, object]] = []
+    if threshold is None:
+        for i, frame_idx in enumerate(frame_indices):
+            trigger = (
+                "scene_boundary" if frame_idx in boundary_idxs else "phash_change"
+            )
+            guard.record(frame_idx / fps)
+            selected.append((frame_idx, trigger, hashes[i]))
+    else:
+        floor_interval_frames = max(int(FLOOR_INTERVAL * fps), 1)
+        last_floor_idx = scene_start
 
-        if trigger is None and prev_hash is not None:
-            diff = curr_hash - prev_hash
-            if diff > threshold:
+        for i, frame_idx in enumerate(frame_indices):
+            timestamp = frame_idx / fps
+            trigger: Optional[str] = None
+
+            if frame_idx in boundary_idxs:
+                trigger = "scene_boundary"
+
+            if trigger is None and i > 0 and diffs[i - 1] > threshold:
                 trigger = "phash_change"
 
-        if trigger is None and (frame_idx - last_floor_idx) >= floor_interval_frames:
-            trigger = "floor"
-            last_floor_idx = frame_idx
+            if trigger is None and (frame_idx - last_floor_idx) >= floor_interval_frames:
+                trigger = "floor"
+                last_floor_idx = frame_idx
 
-        if trigger and guard.try_sample(timestamp):
-            sampled.append(
-                SampledFrame(
-                    frame_index=frame_idx,
-                    timestamp=timestamp,
-                    frame=frame.copy(),
-                    phash=str(curr_hash),
-                    trigger=trigger,
-                )
+            if trigger and guard.try_sample(timestamp):
+                selected.append((frame_idx, trigger, hashes[i]))
+
+    # Pass 2b: fetch only the selected frames.
+    sampled: List[SampledFrame] = []
+    for frame_idx, trigger, phash in selected:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        ret, frame = cap.read()
+        if not ret:
+            logger.warning("Failed to read selected frame %d", frame_idx)
+            continue
+
+        sampled.append(
+            SampledFrame(
+                frame_index=frame_idx,
+                timestamp=frame_idx / fps,
+                frame=frame.copy(),
+                phash=str(phash),
+                trigger=trigger,
             )
-
-        prev_hash = curr_hash
+        )
 
     return sampled
 

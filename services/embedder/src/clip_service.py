@@ -142,18 +142,17 @@ class ClipEmbeddingEngine:
         if len(frame_ids) != len(frame_b64):
             raise ValueError("frame_ids and frame_b64 length mismatch")
 
-        images: List[Image.Image] = []
-        for i, raw in enumerate(frame_b64):
-            try:
-                images.append(decode_base64_jpeg(raw))
-            except ValueError as e:
-                raise ValueError(f"frame at index {i}: {e}") from e
-
         out: List[Tuple[UUID, List[float]]] = []
         bs = self._image_batch_size
-        for start in range(0, len(images), bs):
+        for start in range(0, len(frame_ids), bs):
             chunk_ids = frame_ids[start : start + bs]
-            chunk_imgs = images[start : start + bs]
+            chunk_b64 = frame_b64[start : start + bs]
+            chunk_imgs: List[Image.Image] = []
+            for i, raw in enumerate(chunk_b64):
+                try:
+                    chunk_imgs.append(decode_base64_jpeg(raw))
+                except ValueError as e:
+                    raise ValueError(f"frame at index {start + i}: {e}") from e
             vecs = self._encode_image_batch(chunk_imgs)
             for fid, row in zip(chunk_ids, vecs, strict=True):
                 out.append((fid, row.detach().cpu().float().tolist()))

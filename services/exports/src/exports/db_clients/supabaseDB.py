@@ -4,7 +4,8 @@ Tables (see `dev_schema.sql`):
     media          — one row per uploaded video/image
     frames         — one row per extracted frame, with MinIO URL
     embeddings     — one row per frame or transcript embedding; vectors live in FAISS
-    transcripts    — Whisper transcript segments (defined; not yet wired)
+    transcripts    — Whisper transcript segments
+    captions       — visual caption windows (uniform 1fps pass; not CLIP frames)
     search_queries — query log (defined; not yet wired)
 
 All UUIDs are passed/stored as strings (`mode="json"` on dump). Enums
@@ -18,6 +19,8 @@ from pydantic import BaseModel
 from supabase import AsyncClient
 
 from exports.schema.models import (
+    CaptionCreate,
+    CaptionRow,
     EmbeddingCreate,
     EmbeddingRow,
     FrameCreate,
@@ -259,6 +262,49 @@ class SupabaseDB:
         payload = [t.model_dump(mode="json") for t in transcripts]
         response = await self.client.table("transcripts").insert(payload).execute()
         return _parse_rows(TranscriptRow, response.data)
+
+    # ===================== Captions =====================
+    async def get_caption_by_id(self, caption_id: IdLike) -> Optional[CaptionRow]:
+        response = (
+            await self.client.table("captions")
+            .select("*")
+            .eq("id", _id(caption_id))
+            .execute()
+        )
+        return _parse_row(CaptionRow, response.data[0]) if response.data else None
+
+    async def get_captions_by_ids(self, caption_ids: List[IdLike]) -> List[CaptionRow]:
+        if not caption_ids:
+            return []
+        ids = [_id(c) for c in caption_ids]
+        response = (
+            await self.client.table("captions").select("*").in_("id", ids).execute()
+        )
+        return _parse_rows(CaptionRow, response.data)
+
+    async def get_captions_by_media_id(self, media_id: IdLike) -> List[CaptionRow]:
+        response = (
+            await self.client.table("captions")
+            .select("*")
+            .eq("media_id", _id(media_id))
+            .order("start_time")
+            .execute()
+        )
+        return _parse_rows(CaptionRow, response.data)
+
+    async def insert_caption(self, caption: CaptionCreate) -> CaptionRow:
+        payload = caption.model_dump(mode="json")
+        response = await self.client.table("captions").insert(payload).execute()
+        return _parse_row(CaptionRow, response.data[0])
+
+    async def insert_captions_batch(
+        self, captions: List[CaptionCreate]
+    ) -> List[CaptionRow]:
+        if not captions:
+            return []
+        payload = [c.model_dump(mode="json") for c in captions]
+        response = await self.client.table("captions").insert(payload).execute()
+        return _parse_rows(CaptionRow, response.data)
 
     # ===================== Search Queries (model defined; not yet wired) =====================
     async def insert_search_query(self, query: SearchQueryCreate) -> SearchQueryRow:

@@ -17,7 +17,7 @@ class TranscribeClient:
 
     async def connect(self) -> "TranscribeClient":
         if self.client is None:
-            self.client = httpx.AsyncClient(base_url=self.base_url, timeout=600.0)
+            self.client = httpx.AsyncClient(base_url=self.base_url, timeout=900.0)
         return self
 
     async def close(self) -> None:
