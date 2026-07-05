@@ -27,6 +27,13 @@
         "services/media_processor/src",
         "services/media_processor/.venv/lib/python3.13/site-packages"
       ]
+    },
+    {
+      "root": "services/caption",
+      "extraPaths": [
+        "services/exports/src",
+        "services/caption/src"
+      ]
     }
   ]
 }

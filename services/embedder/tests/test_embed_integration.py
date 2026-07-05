@@ -6,7 +6,7 @@ import uuid
 from io import BytesIO
 
 import pytest
-from PIL import Image
+from PIL import Image  # pyright: ignore[reportMissingImports]
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("RUN_CLIP_INTEGRATION"),

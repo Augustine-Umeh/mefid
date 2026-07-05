@@ -11,7 +11,7 @@ from typing import List, Sequence, Tuple
 from uuid import UUID
 
 import torch
-from PIL import Image
+from PIL import Image  # pyright: ignore[reportMissingImports]
 from transformers import CLIPModel, CLIPProcessor
 from exports.schema.constants import (
     CLIP_MODEL,

@@ -5,7 +5,7 @@ from io import BytesIO
 
 import pytest
 import torch
-from PIL import Image
+from PIL import Image  # pyright: ignore[reportMissingImports]
 
 from src.clip_service import _l2_normalize, decode_base64_jpeg
 

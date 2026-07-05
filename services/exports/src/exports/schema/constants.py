@@ -88,6 +88,7 @@ MEDIA_PROCESSOR_SERVICE = _get_env("MEDIA_PROCESSOR_SERVICE", "")
 EMBEDDER_SERVICE = _get_env("EMBEDDER_SERVICE", "")
 INDEXER_SERVICE = _get_env("INDEXER_SERVICE", "")
 TRANSCRIBE_SERVICE = _get_env("TRANSCRIBE_SERVICE", "")
+CAPTION_SERVICE = _get_env("CAPTION_SERVICE", "")
 
 # -----------------------------
 # Supabase (lifespan services; optional at import for embedder)
@@ -141,6 +142,52 @@ WHISPER_MODEL: str = _get_env("WHISPER_MODEL", "")
 WHISPER_DEVICE: str = _get_env("WHISPER_DEVICE", "")
 WHISPER_COMPUTE_TYPE: str = _get_env("WHISPER_COMPUTE_TYPE", "")
 WHISPER_CACHE = _get_env("WHISPER_CACHE", "")
+
+# -----------------------------
+# Video captioning (caption service)
+# -----------------------------
+CAPTION_MODEL: str = _get_env("CAPTION_MODEL", "Qwen/Qwen2-VL-2B-Instruct")
+CAPTION_CACHE = _get_env("CAPTION_CACHE", "")
+CAPTION_WINDOW_SECONDS: float = _get_float("CAPTION_WINDOW_SECONDS", 4.0)
+CAPTION_MIN_FPS: float = _get_float("CAPTION_MIN_FPS", 0.5)
+CAPTION_TARGET_FPS: float = _get_float("CAPTION_TARGET_FPS", 3.0)
+CAPTION_MAX_NEW_TOKENS: int = _get_int("CAPTION_MAX_NEW_TOKENS", 200)
+# Qwen2-VL max_pixels tiers (tokens_per_frame, max_pixels); highest quality first.
+CAPTION_MAX_PIXELS_DEFAULT: int = _get_int("CAPTION_MAX_PIXELS_DEFAULT", 1280 * 28 * 28)
+CAPTION_MAX_PIXELS_1024: int = _get_int("CAPTION_MAX_PIXELS_1024", 1024 * 28 * 28)
+CAPTION_MAX_PIXELS_512: int = _get_int("CAPTION_MAX_PIXELS_512", 512 * 28 * 28)
+CAPTION_MAX_PIXELS_256: int = _get_int("CAPTION_MAX_PIXELS_256", 256 * 28 * 28)
+CAPTION_MAX_PIXELS_FLOOR: int = _get_int("CAPTION_MAX_PIXELS_FLOOR", 128 * 28 * 28)
+# Per-frame token estimates — measure on target hardware before treating as reliable.
+CAPTION_TOKENS_PER_FRAME_DEFAULT: int = _get_int("CAPTION_TOKENS_PER_FRAME_DEFAULT", 1280)
+CAPTION_TOKENS_PER_FRAME_1024: int = _get_int("CAPTION_TOKENS_PER_FRAME_1024", 1024)
+CAPTION_TOKENS_PER_FRAME_512: int = _get_int("CAPTION_TOKENS_PER_FRAME_512", 512)
+CAPTION_TOKENS_PER_FRAME_256: int = _get_int("CAPTION_TOKENS_PER_FRAME_256", 256)
+CAPTION_TOKENS_PER_FRAME_FLOOR: int = _get_int("CAPTION_TOKENS_PER_FRAME_FLOOR", 128)
+CAPTION_RESOLUTION_TIERS: list[tuple[int, int]] = [
+    (CAPTION_TOKENS_PER_FRAME_1024, CAPTION_MAX_PIXELS_1024),
+    (CAPTION_TOKENS_PER_FRAME_512, CAPTION_MAX_PIXELS_512),
+    (CAPTION_TOKENS_PER_FRAME_256, CAPTION_MAX_PIXELS_256),
+    (CAPTION_TOKENS_PER_FRAME_FLOOR, CAPTION_MAX_PIXELS_FLOOR),
+]
+CAPTION_MAX_TOTAL_TOKENS: int = _get_int("CAPTION_MAX_TOTAL_TOKENS", 20000)
+CAPTION_ADAPTIVE_SCENE_THRESHOLD: float = _get_float("CAPTION_ADAPTIVE_SCENE_THRESHOLD", 3.0)
+CAPTION_MIN_SCENE_LEN: int = _get_int("CAPTION_MIN_SCENE_LEN", 15)
+CAPTION_MERGE_GATE_ENABLED: bool = _get_bool("CAPTION_MERGE_GATE_ENABLED", True)
+CAPTION_MERGE_SIMILARITY_THRESHOLD: float = _get_float(
+    "CAPTION_MERGE_SIMILARITY_THRESHOLD", 0.92
+)
+CAPTION_MERGE_PROXIMITY_SECONDS: float = _get_float(
+    "CAPTION_MERGE_PROXIMITY_SECONDS", 15.0
+)
+CAPTION_PROMPT: str = _get_env(
+    "CAPTION_PROMPT",
+    (
+        "These frames are from a video in chronological order. "
+        "Describe only what is clearly visible. "
+        "Reply with one or two complete sentences. No preamble."
+    ),
+)
 
 # -----------------------------
 # Shared FastAPI lifespan (`exports.db_clients.lifespan`)

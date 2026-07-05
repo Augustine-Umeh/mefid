@@ -1,7 +1,7 @@
 import cv2
 import imagehash
 import numpy as np
-from PIL import Image
+from PIL import Image  # pyright: ignore[reportMissingImports]
 from typing import List
 
 
