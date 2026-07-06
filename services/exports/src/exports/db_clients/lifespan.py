@@ -10,6 +10,7 @@ from exports.db_clients.supabaseDB import SupabaseDB
 from exports.schema.constants import (
     CLIP_DIMENSION,
     EXPORTS_LIFESPAN_EMBEDDER,
+    EXPORTS_LIFESPAN_FAISS,
     FAISS_INDEX_PATH,
 )
 from exports.utils.logger import get_logger
@@ -18,7 +19,9 @@ logger = get_logger()
 
 
 def _should_init_faiss() -> bool:
-    """Indexer service loads FAISS when a non-empty index path is configured."""
+    """Indexer service loads FAISS when EXPORTS_LIFESPAN_FAISS is set."""
+    if not EXPORTS_LIFESPAN_FAISS:
+        return False
     return bool(str(FAISS_INDEX_PATH or "").strip())
 
 
@@ -28,7 +31,7 @@ async def lifespan(app: FastAPI):
     Shared startup for Mefid FastAPI apps.
 
     * **Default:** Supabase + MinIO on ``app.state``; optionally FAISS when
-      ``FAISS_INDEX_PATH`` is set (indexer).
+      ``EXPORTS_LIFESPAN_FAISS`` and ``FAISS_INDEX_PATH`` are set (indexer).
     * **Embedder:** set ``EXPORTS_LIFESPAN_EMBEDDER`` (see ``constants``); skips
       database clients and loads CLIP onto ``app.state.clip_engine``.
     """

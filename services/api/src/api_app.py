@@ -13,6 +13,7 @@ from .service_clients.media_processor_client import MediaProcessorClient
 from .service_clients.embedder_client import EmbedderClient
 from .service_clients.indexer_client import IndexerClient
 from .service_clients.transcribe_client import TranscribeClient
+from .service_clients.caption_client import CaptionClient
 
 logger = get_logger()
 
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI):
         app.state.embedder        : EmbedderClient
         app.state.indexer         : IndexerClient
         app.state.transcribe      : TranscribeClient
+        app.state.caption         : CaptionClient
 
     Routes pull these out of `request.app.state` instead of opening a
     fresh `httpx.AsyncClient` per request.
@@ -38,11 +40,13 @@ async def lifespan(app: FastAPI):
         embedder = await EmbedderClient().connect()
         indexer = await IndexerClient().connect()
         transcribe = await TranscribeClient().connect()
+        caption = await CaptionClient().connect()
 
         app.state.media_processor = media_processor
         app.state.embedder = embedder
         app.state.indexer = indexer
         app.state.transcribe = transcribe
+        app.state.caption = caption
         logger.info("✅ Downstream service clients ready.")
 
         try:
@@ -57,10 +61,12 @@ async def lifespan(app: FastAPI):
             await embedder.close()
             await indexer.close()
             await transcribe.close()
+            await caption.close()
             app.state.media_processor = None
             app.state.embedder = None
             app.state.indexer = None
             app.state.transcribe = None
+            app.state.caption = None
             logger.info("✅ Downstream service clients closed.")
 
 

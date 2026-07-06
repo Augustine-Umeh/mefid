@@ -24,6 +24,7 @@ from ..service_clients.embedder_client import EmbedderClient
 from ..service_clients.indexer_client import IndexerClient
 from ..service_clients.media_processor_client import MediaProcessorClient
 from ..service_clients.transcribe_client import TranscribeClient
+from ..service_clients.caption_client import CaptionClient
 
 router = APIRouter()
 logger = get_logger()
@@ -106,6 +107,7 @@ async def upload_video(
     embedder: EmbedderClient = request.app.state.embedder
     indexer: IndexerClient = request.app.state.indexer
     transcribe: TranscribeClient = request.app.state.transcribe
+    caption: CaptionClient = request.app.state.caption
 
     media_id: str | None = None
 
@@ -203,6 +205,25 @@ async def upload_video(
         except Exception:
             logger.exception(
                 "Transcription pipeline failed (non-fatal); media_id=%s",
+                media_id,
+            )
+
+        # ---- Caption + persist windows (non-fatal) ---------------------
+        try:
+            captioned = await caption.caption(
+                video_object_key=object_name,
+                media_id=extracted.media_id,
+                file_name=object_name,
+            )
+            if captioned.segments:
+                logger.info(
+                    "Stored %s caption windows for media_id=%s",
+                    captioned.segment_count,
+                    media_id,
+                )
+        except Exception:
+            logger.exception(
+                "Captioning pipeline failed (non-fatal); media_id=%s",
                 media_id,
             )
 

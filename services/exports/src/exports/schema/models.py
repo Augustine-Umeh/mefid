@@ -295,6 +295,26 @@ class TranscribeResponse(BaseModel):
     segment_count: int
 
 
+# ---- caption I/O ----
+class CaptionSegmentData(BaseModel):
+    id: UUID
+    start_time: float
+    end_time: float
+    text: str
+
+
+class CaptionRequest(BaseModel):
+    video_object_key: str
+    media_id: UUID
+    file_name: str
+
+
+class CaptionResponse(BaseModel):
+    media_id: UUID
+    segments: List[CaptionSegmentData]
+    segment_count: int
+
+
 # ---- indexer I/O ----
 class AddVectorItem(BaseModel):
     frame_id: Optional[UUID] = None

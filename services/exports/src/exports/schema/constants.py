@@ -194,6 +194,8 @@ CAPTION_PROMPT: str = _get_env(
 # -----------------------------
 # Embedder: skip Supabase/MinIO; load CLIP only. Set in embedder container env.
 EXPORTS_LIFESPAN_EMBEDDER: bool = _get_bool("EXPORTS_LIFESPAN_EMBEDDER", False)
+# Indexer: load FAISS (requires FAISS_INDEX_PATH). Other services ignore the path.
+EXPORTS_LIFESPAN_FAISS: bool = _get_bool("EXPORTS_LIFESPAN_FAISS", False)
 
 # -----------------------------
 # FAISS (indexer service)

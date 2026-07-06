@@ -11,6 +11,7 @@ services:
             - EMBEDDER_SERVICE=${EMBEDDER_SERVICE}
             - INDEXER_SERVICE=${INDEXER_SERVICE}
             - TRANSCRIBE_SERVICE=${TRANSCRIBE_SERVICE}
+            - CAPTION_SERVICE=${CAPTION_SERVICE}
             - DEFAULT_TOP_K=${DEFAULT_TOP_K}
             - MINIO_ENDPOINT=${MINIO_ENDPOINT}
             - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
@@ -123,6 +124,7 @@ services:
         ports:
             - "8003:8003"
         environment:
+            - EXPORTS_LIFESPAN_FAISS=1
             - SUPABASE_DB_URL=${SUPABASE_DB_URL}
             - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
             - FAISS_INDEX_PATH=${FAISS_INDEX_PATH}

@@ -3,6 +3,7 @@ from service_clients.embedder_client import EmbedderClient
 from service_clients.indexer_client import IndexerClient
 from service_clients.media_processor_client import MediaProcessorClient
 from service_clients.transcribe_client import TranscribeClient
+from service_clients.caption_client import CaptionClient
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -26,6 +27,7 @@ async def health_check_all():
         "embedder": {"status": "unknown"},
         "indexer": {"status": "unknown"},
         "transcribe": {"status": "unknown"},
+        "caption": {"status": "unknown"},
     }
     
     # Check Media Processor
@@ -63,7 +65,16 @@ async def health_check_all():
     except Exception as e:
         services["transcribe"]["status"] = "unhealthy"
         services["transcribe"]["error"] = str(e)
-    
+
+    # Check Caption
+    try:
+        async with CaptionClient() as client:
+            await client.health_check()
+            services["caption"]["status"] = "healthy"
+    except Exception as e:
+        services["caption"]["status"] = "unhealthy"
+        services["caption"]["error"] = str(e)
+
     # Overall status
     all_healthy = all(
         svc["status"] == "healthy" 

@@ -59,7 +59,7 @@ def log_scene_size_frequency(scenes: list[Scene]):
     scene_size_frequency: dict[float, int] = {}
     max_duration = 0.0
     for scene in scenes:
-        duration = scene.end_time - scene.start_time
+        duration = scene.duration
         if duration > max_duration:
             max_duration = duration
         scene_size_frequency[duration] = scene_size_frequency.get(duration, 0) + 1
