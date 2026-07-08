@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from exports.db_clients.db_client import create_minio, create_supabase
 from exports.db_clients.minioDB import MinioDB
 from exports.db_clients.supabaseDB import SupabaseDB
+from exports.faiss_store import FaissIndexRegistry, faiss_index_dir
 from exports.schema.constants import (
     CLIP_DIMENSION,
     EXPORTS_LIFESPAN_EMBEDDER,
@@ -64,18 +65,17 @@ async def lifespan(app: FastAPI):
 
 
             if _should_init_faiss():
-                from exports.faiss_store import FaissVectorStore
-
+                base_dir = faiss_index_dir()
                 app.state.indexer_write_lock = asyncio.Lock()
-                faiss_store = FaissVectorStore()
-                logger.info("Loading FAISS index from %s ...", faiss_store.path)
+                faiss_store = FaissIndexRegistry(base_dir)
+                logger.info("Loading FAISS indexes from %s ...", faiss_store.base_dir)
                 await asyncio.to_thread(faiss_store.load)
                 app.state.faiss = faiss_store
                 logger.info(
                     "✅ FAISS ready (dim=%s, ntotal=%s, path=%s)",
                     CLIP_DIMENSION,
                     faiss_store.ntotal,
-                    faiss_store.path,
+                    faiss_store.base_dir,
                 )
             else:
                 app.state.indexer_write_lock = None

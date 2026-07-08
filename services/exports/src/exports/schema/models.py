@@ -62,6 +62,7 @@ class EmbeddingRow(BaseModel):
     id: UUID
     frame_id: Optional[UUID] = None
     transcript_id: Optional[UUID] = None
+    caption_id: Optional[UUID] = None
     faiss_index_id: int
     vector_type: VectorType
     created_at: datetime
@@ -127,15 +128,20 @@ class FrameCreate(BaseModel):
 class EmbeddingCreate(BaseModel):
     frame_id: Optional[UUID] = None
     transcript_id: Optional[UUID] = None
+    caption_id: Optional[UUID] = None
     faiss_index_id: int
     vector_type: VectorType
 
     @model_validator(mode="after")
     def exactly_one_source(self) -> "EmbeddingCreate":
-        has_frame = self.frame_id is not None
-        has_transcript = self.transcript_id is not None
-        if has_frame == has_transcript:
-            raise ValueError("Exactly one of frame_id or transcript_id must be set")
+        source_count = sum(
+            value is not None
+            for value in (self.frame_id, self.transcript_id, self.caption_id)
+        )
+        if source_count != 1:
+            raise ValueError(
+                "Exactly one of frame_id, transcript_id, or caption_id must be set"
+            )
         return self
 
 
@@ -275,6 +281,24 @@ class EmbedTextBatchResponse(BaseModel):
     embeddings: List[TextEmbeddingResult]
 
 
+class EmbedCaptionItem(BaseModel):
+    caption_id: UUID
+    text: str
+
+
+class EmbedCaptionBatchRequest(BaseModel):
+    captions: List[EmbedCaptionItem]
+
+
+class CaptionEmbeddingResult(BaseModel):
+    caption_id: UUID
+    embedding: List[float]
+
+
+class EmbedCaptionBatchResponse(BaseModel):
+    embeddings: List[CaptionEmbeddingResult]
+
+
 # ---- transcribe I/O ----
 class TranscriptSegmentData(BaseModel):
     id: UUID
@@ -319,15 +343,20 @@ class CaptionResponse(BaseModel):
 class AddVectorItem(BaseModel):
     frame_id: Optional[UUID] = None
     transcript_id: Optional[UUID] = None
+    caption_id: Optional[UUID] = None
     embedding: List[float]
     vector_type: VectorType = VectorType.IMAGE
 
     @model_validator(mode="after")
     def exactly_one_source(self) -> "AddVectorItem":
-        has_frame = self.frame_id is not None
-        has_transcript = self.transcript_id is not None
-        if has_frame == has_transcript:
-            raise ValueError("Exactly one of frame_id or transcript_id must be set")
+        source_count = sum(
+            value is not None
+            for value in (self.frame_id, self.transcript_id, self.caption_id)
+        )
+        if source_count != 1:
+            raise ValueError(
+                "Exactly one of frame_id, transcript_id, or caption_id must be set"
+            )
         return self
 
 
@@ -343,13 +372,15 @@ class AddVectorsResponse(BaseModel):
 class SearchVectorsRequest(BaseModel):
     embedding: List[float]
     top_k: int
+    vector_type: Optional[VectorType] = None
 
 
 class IndexerVectorHit(BaseModel):
-    """One FAISS neighbour; the API joins ``faiss_index_id`` to frames via Supabase."""
+    """One FAISS neighbour; the API joins via ``faiss_index_id`` + ``vector_type``."""
 
     faiss_index_id: int
     similarity_score: float
+    vector_type: VectorType
 
 
 class SearchVectorsResponse(BaseModel):

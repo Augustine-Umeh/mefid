@@ -25,6 +25,7 @@ services:
             - embedder
             - indexer
             - transcribe
+            - caption
             - minio
         volumes:
             - ./services/api/src:/app/src  # Hot reload for development
@@ -77,14 +78,14 @@ services:
         volumes:
             - ./services/embedder/src:/app/src  # Hot reload
             - embedder_cache:/app/model_cache  # Persist model cache
-        # Uncomment for GPU support
-        # deploy:
-        #   resources:
-        #     reservations:
-        #       devices:
-        #         - driver: nvidia
-        #           count: 1
-        #           capabilities: [gpu]
+        # GPU support
+        deploy:
+          resources:
+            reservations:
+              devices:
+                - driver: nvidia
+                  count: 1
+                  capabilities: [gpu]
         networks:
             - mefid-network
 
@@ -113,6 +114,39 @@ services:
         volumes:
             - ./services/transcribe/src:/app/src
             - whisper_cache:/app/model_cache
+        networks:
+            - mefid-network
+
+    caption:
+        build:
+            context: .
+            dockerfile: services/caption/Dockerfile
+        container_name: mefid-caption
+        ports:
+            - "8005:8005"
+        environment:
+            - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+            - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+            - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+            - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+            - MINIO_USE_SSL=${MINIO_USE_SSL}
+            - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+            - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+            - CAPTION_MODEL=${CAPTION_MODEL}
+            - CAPTION_CACHE=${CAPTION_CACHE}
+            - HF_TOKEN=${HF_TOKEN}
+        depends_on:
+            - minio
+        volumes:
+            - ./services/caption/src:/app/src
+            - caption_cache:/app/model_cache
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - driver: nvidia
+                          count: 1
+                          capabilities: [gpu]
         networks:
             - mefid-network
 
@@ -166,6 +200,8 @@ volumes:
     embedder_cache:
         driver: local
     whisper_cache:
+        driver: local
+    caption_cache:
         driver: local
 
 networks:

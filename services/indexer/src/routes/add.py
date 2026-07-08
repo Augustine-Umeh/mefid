@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-from typing import List
+from collections import defaultdict
+from typing import DefaultDict, List
 
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 
-from exports.schema.constants import CLIP_DIMENSION
+from exports.schema.constants import CLIP_DIMENSION, VectorType
 from exports.schema.models import (
+    AddVectorItem,
     AddVectorsRequest,
     AddVectorsResponse,
     EmbeddingCreate,
@@ -34,31 +36,39 @@ async def add_vectors(request: Request, body: AddVectorsRequest) -> AddVectorsRe
                 ),
             )
 
-    faiss_store = request.app.state.faiss
+    faiss_registry = request.app.state.faiss
     supabase = request.app.state.supabase
     lock = request.app.state.indexer_write_lock
 
+    by_type: DefaultDict[VectorType, List[AddVectorItem]] = defaultdict(list)
+    for item in body.vectors:
+        by_type[item.vector_type].append(item)
+
     rows: List[EmbeddingCreate] = []
-    matrix = np.asarray(
-        [item.embedding for item in body.vectors],
-        dtype=np.float32,
-    )
 
     async with lock:
-        try:
-            faiss_ids = await asyncio.to_thread(faiss_store.add, matrix)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
-
-        for item, faiss_index_id in zip(body.vectors, faiss_ids, strict=True):
-            rows.append(
-                EmbeddingCreate(
-                    frame_id=item.frame_id,
-                    transcript_id=item.transcript_id,
-                    faiss_index_id=faiss_index_id,
-                    vector_type=item.vector_type,
-                )
+        for vector_type, items in by_type.items():
+            matrix = np.asarray(
+                [item.embedding for item in items],
+                dtype=np.float32,
             )
+            try:
+                faiss_ids = await asyncio.to_thread(
+                    faiss_registry.add, vector_type, matrix
+                )
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
+
+            for item, faiss_index_id in zip(items, faiss_ids, strict=True):
+                rows.append(
+                    EmbeddingCreate(
+                        frame_id=item.frame_id,
+                        transcript_id=item.transcript_id,
+                        caption_id=item.caption_id,
+                        faiss_index_id=faiss_index_id,
+                        vector_type=item.vector_type,
+                    )
+                )
 
         try:
             await supabase.insert_embeddings_batch(rows)
@@ -76,11 +86,11 @@ async def add_vectors(request: Request, body: AddVectorsRequest) -> AddVectorsRe
             ) from None
 
         try:
-            await asyncio.to_thread(faiss_store.save)
+            await asyncio.to_thread(faiss_registry.save)
         except Exception:
             logger.exception(
                 "FAISS save failed after successful DB write (path=%s)",
-                faiss_store.path,
+                faiss_registry.base_dir,
             )
             raise HTTPException(
                 status_code=500,

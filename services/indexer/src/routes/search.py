@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import asyncio
 
-from exports.faiss_store import FaissVectorStore
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 
-from exports.schema.constants import CLIP_DIMENSION, FILTERED_SEARCH_MAX_K
+from exports.schema.constants import CLIP_DIMENSION, DEFAULT_TOP_K, VectorType
 from exports.schema.models import (
     IndexerVectorHit,
     SearchVectorsRequest,
@@ -22,7 +21,7 @@ logger = get_logger()
 async def search_vectors(
     request: Request, body: SearchVectorsRequest
 ) -> SearchVectorsResponse:
-    """Nearest-neighbour search; returns FAISS ids and inner-product scores only."""
+    """Nearest-neighbour search; returns FAISS ids, scores, and vector type."""
     if len(body.embedding) != CLIP_DIMENSION:
         raise HTTPException(
             status_code=400,
@@ -36,11 +35,11 @@ async def search_vectors(
             status_code=400,
             detail="top_k must be at least 1",
         )
-    top_k = min(body.top_k, FILTERED_SEARCH_MAX_K)
+    top_k = min(body.top_k, DEFAULT_TOP_K)
 
-    faiss_store: FaissVectorStore | None = getattr(request.app.state, "faiss", None)
+    faiss_registry = getattr(request.app.state, "faiss", None)
     lock: asyncio.Lock | None = getattr(request.app.state, "indexer_write_lock", None)
-    if faiss_store is None or lock is None:
+    if faiss_registry is None or lock is None:
         raise HTTPException(
             status_code=503,
             detail="FAISS index is not available (check FAISS_INDEX_PATH and startup logs).",
@@ -50,13 +49,35 @@ async def search_vectors(
 
     async with lock:
         try:
-            raw = await asyncio.to_thread(faiss_store.search, q, top_k)
+            if body.vector_type is None:
+                raw = await asyncio.to_thread(faiss_registry.search_all, q, top_k)
+                hits = [
+                    IndexerVectorHit(
+                        faiss_index_id=faiss_index_id,
+                        similarity_score=score,
+                        vector_type=vector_type,
+                    )
+                    for vector_type, faiss_index_id, score in raw
+                ]
+            else:
+                raw = await asyncio.to_thread(
+                    faiss_registry.search, body.vector_type, q, top_k
+                )
+                hits = [
+                    IndexerVectorHit(
+                        faiss_index_id=faiss_index_id,
+                        similarity_score=score,
+                        vector_type=body.vector_type,
+                    )
+                    for faiss_index_id, score in raw
+                ]
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
-    hits = [
-        IndexerVectorHit(faiss_index_id=fid, similarity_score=score)
-        for fid, score in raw
-    ]
-    logger.info("vectors/search top_k=%s returned=%s", top_k, len(hits))
+    logger.info(
+        "vectors/search top_k=%s vector_type=%s returned=%s",
+        top_k,
+        body.vector_type,
+        len(hits),
+    )
     return SearchVectorsResponse(hits=hits)

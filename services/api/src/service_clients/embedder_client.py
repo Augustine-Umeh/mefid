@@ -1,5 +1,5 @@
 import httpx
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from exports.schema.constants import EMBED_IMAGE_BATCH_SIZE, EMBEDDER_SERVICE
 from exports.schema.models import (
@@ -12,6 +12,8 @@ from exports.schema.models import (
     EmbedTextResponse,
     EmbeddingResult,
     EmbedTextItem,
+    EmbedCaptionItem,
+    CaptionEmbeddingResult,
     TextEmbeddingResult,
 )
 
@@ -89,6 +91,29 @@ class EmbedderClient:
         response = await self.client.post("/embed/text/batch", json=payload)
         response.raise_for_status()
         return EmbedTextBatchResponse(**response.json()).embeddings
+
+    async def embed_captions(
+        self, items: List[EmbedCaptionItem]
+    ) -> List[CaptionEmbeddingResult]:
+        """Embed a batch of visual caption strings into CLIP vectors."""
+        if not self.client:
+            raise RuntimeError("HTTP client is not initialized.")
+        if not items:
+            return []
+
+        # Reuses the transcript text-encoder route; only the id field differs.
+        text_items = [
+            EmbedTextItem(transcript_id=item.caption_id, text=item.text)
+            for item in items
+        ]
+        text_embeddings = await self.embed_texts(text_items)
+        return [
+            CaptionEmbeddingResult(
+                caption_id=result.transcript_id,
+                embedding=result.embedding,
+            )
+            for result in text_embeddings
+        ]
 
     async def health_check(self) -> Dict[str, str]:
         if not self.client:

@@ -11,6 +11,7 @@ from exports.schema.constants import (
 )
 from exports.schema.models import (
     AddVectorItem,
+    EmbedCaptionItem,
     EmbedImageItem,
     EmbedTextItem,
     MediaUpdate,
@@ -208,7 +209,7 @@ async def upload_video(
                 media_id,
             )
 
-        # ---- Caption + persist windows (non-fatal) ---------------------
+        # ---- Caption + index caption vectors (non-fatal) ---------------
         try:
             captioned = await caption.caption(
                 video_object_key=object_name,
@@ -216,9 +217,26 @@ async def upload_video(
                 file_name=object_name,
             )
             if captioned.segments:
+                caption_embed_items = [
+                    EmbedCaptionItem(caption_id=seg.id, text=seg.text)
+                    for seg in captioned.segments
+                ]
+                caption_embeddings = await embedder.embed_captions(caption_embed_items)
+                caption_index_input = [
+                    AddVectorItem(
+                        caption_id=result.caption_id,
+                        embedding=result.embedding,
+                        vector_type=VectorType.CAPTION,
+                    )
+                    for result in caption_embeddings
+                ]
+                caption_index_result = await indexer.add_vectors(
+                    media_id=extracted.media_id,
+                    vectors=caption_index_input,
+                )
                 logger.info(
-                    "Stored %s caption windows for media_id=%s",
-                    captioned.segment_count,
+                    "Indexed %s caption vectors for media_id=%s",
+                    caption_index_result.count,
                     media_id,
                 )
         except Exception:

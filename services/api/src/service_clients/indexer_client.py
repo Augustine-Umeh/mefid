@@ -1,8 +1,8 @@
 import httpx
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
-from exports.schema.constants import INDEXER_SERVICE
+from exports.schema.constants import INDEXER_SERVICE, VectorType
 from exports.schema.models import (
     AddVectorItem,
     AddVectorsRequest,
@@ -75,14 +75,16 @@ class IndexerClient:
         self,
         embedding: List[float],
         top_k: int,
+        vector_type: Optional[VectorType] = None,
     ) -> List[IndexerVectorHit]:
-        """Nearest-neighbour search against the FAISS index."""
+        """Nearest-neighbour search against one or all FAISS indexes."""
         if not self.client:
             raise RuntimeError("HTTP client is not initialized.")
 
         payload = SearchVectorsRequest(
             embedding=embedding,
             top_k=top_k,
+            vector_type=vector_type,
         ).model_dump(mode="json")
         response = await self.client.post("vectors/search/", json=payload)
         response.raise_for_status()

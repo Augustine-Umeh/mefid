@@ -13,7 +13,7 @@ class UploadResponse(BaseModel):
 
 
 class SearchResult(BaseModel):
-    """One row in a search result set, joining FAISS hits to media + frames/transcripts."""
+    """One row in a search result set, joining FAISS hits to media + frames/transcripts/captions."""
     media_id: UUID
     similarity: float
     media_type: MediaType
@@ -24,6 +24,7 @@ class SearchResult(BaseModel):
     timestamp: Optional[float] = None
     frame_url: Optional[str] = None
     transcript_text: Optional[str] = None
+    caption_text: Optional[str] = None
     start_time: Optional[float] = None
     end_time: Optional[float] = None
 

@@ -37,6 +37,7 @@ class VectorType(str, Enum):
     """Postgres `vector_type` enum — what an embedding represents."""
     IMAGE = "image"
     TEXT = "text"
+    CAPTION = "caption"
 
 
 class QueryType(str, Enum):
@@ -200,4 +201,7 @@ EXPORTS_LIFESPAN_FAISS: bool = _get_bool("EXPORTS_LIFESPAN_FAISS", False)
 # -----------------------------
 # FAISS (indexer service)
 # -----------------------------
+# Base directory for per-modality FAISS files (image.index, transcript.index, caption.index).
+# Set to a directory (e.g. /app/data/faiss) or a legacy single-file path
+# (e.g. /app/data/embeddings.faiss) — the parent directory is used in that case.
 FAISS_INDEX_PATH = _get_env("FAISS_INDEX_PATH", "")

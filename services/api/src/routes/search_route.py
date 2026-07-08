@@ -1,13 +1,13 @@
 """Search endpoints: text search wired; other modalities still stubs."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 
 from exports.db_clients.supabaseDB import IdLike, SupabaseDB
-from exports.schema.constants import DEFAULT_TOP_K, FILTERED_SEARCH_MAX_K, QueryType, VectorType
+from exports.schema.constants import DEFAULT_TOP_K, QueryType, VectorType
 from exports.schema.models import (
     FrameRow,
     IndexerVectorHit,
@@ -24,6 +24,8 @@ from ..service_clients.indexer_client import IndexerClient
 router = APIRouter()
 logger = get_logger()
 
+FaissHitKey = Tuple[int, VectorType]
+
 
 def _effective_top_k(requested: Optional[int]) -> int:
     k = DEFAULT_TOP_K if requested is None else int(requested)
@@ -38,42 +40,32 @@ def _nearest_frame(frames: List[FrameRow], timestamp: float) -> Optional[FrameRo
     return min(frames, key=lambda frame: abs(frame.timestamp - timestamp))
 
 
-def _faiss_top_k(requested_top_k: int, vector_type_filter: Optional[VectorType]) -> int:
-    """When filtering by vector type, over-fetch from FAISS before post-filtering."""
-    if vector_type_filter is None:
-        return requested_top_k
-    return FILTERED_SEARCH_MAX_K
-
-
 async def _join_faiss_hits_to_results(
     supabase: SupabaseDB,
     hits: List[IndexerVectorHit],
     vector_type_filter: Optional[VectorType] = None,
 ) -> List[SearchResult]:
-    """Map indexer hits (faiss id + score) to ``SearchResult`` rows via Supabase."""
+    """Map indexer hits (faiss id + score + type) to ``SearchResult`` rows."""
     if not hits:
         return []
 
-    score_by_faiss: Dict[int, float] = {
-        h.faiss_index_id: h.similarity_score for h in hits
+    score_by_key: Dict[FaissHitKey, float] = {
+        (h.faiss_index_id, h.vector_type): h.similarity_score for h in hits
     }
-    order = [h.faiss_index_id for h in hits]
-    embedding_rows = await supabase.get_embeddings_by_faiss_index_ids(order)
-    by_faiss = {e.faiss_index_id: e for e in embedding_rows}
+    order: List[FaissHitKey] = [(h.faiss_index_id, h.vector_type) for h in hits]
+    embedding_rows = await supabase.get_embeddings_by_faiss_index_ids(
+        [h.faiss_index_id for h in hits]
+    )
+    by_key = {(e.faiss_index_id, e.vector_type): e for e in embedding_rows}
 
     frame_ids = list[IdLike](
-        {
-            e.frame_id
-            for e in embedding_rows
-            if e.frame_id is not None
-        }
+        {e.frame_id for e in embedding_rows if e.frame_id is not None}
     )
     transcript_ids = list[IdLike](
-        {
-            e.transcript_id
-            for e in embedding_rows
-            if e.transcript_id is not None
-        }
+        {e.transcript_id for e in embedding_rows if e.transcript_id is not None}
+    )
+    caption_ids = list[IdLike](
+        {e.caption_id for e in embedding_rows if e.caption_id is not None}
     )
 
     frames = await supabase.get_frames_by_ids(frame_ids)
@@ -82,11 +74,16 @@ async def _join_faiss_hits_to_results(
     transcripts = await supabase.get_transcripts_by_ids(transcript_ids)
     by_transcript = {t.id: t for t in transcripts}
 
+    captions = await supabase.get_captions_by_ids(caption_ids)
+    by_caption = {c.id: c for c in captions}
+
     media_ids: set[UUID] = set()
     for frame in frames:
         media_ids.add(frame.media_id)
     for transcript in transcripts:
         media_ids.add(transcript.media_id)
+    for caption in captions:
+        media_ids.add(caption.media_id)
 
     frames_by_media: Dict[UUID, List[FrameRow]] = {}
     for media_id in media_ids:
@@ -96,15 +93,15 @@ async def _join_faiss_hits_to_results(
     by_media = {m.id: m for m in medias}
 
     results: List[SearchResult] = []
-    for faiss_id in order:
-        emb = by_faiss.get(faiss_id)
+    for faiss_id, hit_vector_type in order:
+        emb = by_key.get((faiss_id, hit_vector_type))
         if emb is None:
             continue
 
         if vector_type_filter is not None and emb.vector_type != vector_type_filter:
             continue
 
-        sim = score_by_faiss[faiss_id]
+        sim = score_by_key[(faiss_id, hit_vector_type)]
 
         if emb.vector_type == VectorType.IMAGE and emb.frame_id is not None:
             frame = by_frame.get(emb.frame_id)
@@ -156,6 +153,36 @@ async def _join_faiss_hits_to_results(
                     end_time=transcript.end_time,
                 )
             )
+            continue
+
+        if emb.vector_type == VectorType.CAPTION and emb.caption_id is not None:
+            caption = by_caption.get(emb.caption_id)
+            if caption is None:
+                continue
+            media = by_media.get(caption.media_id)
+            if media is None:
+                continue
+            midpoint = (caption.start_time + caption.end_time) / 2.0
+            preview = _nearest_frame(
+                frames_by_media.get(caption.media_id, []),
+                midpoint,
+            )
+            results.append(
+                SearchResult(
+                    media_id=caption.media_id,
+                    similarity=sim,
+                    media_type=media.media_type,
+                    file_name=media.file_name,
+                    file_url=media.file_url,
+                    vector_type=VectorType.CAPTION,
+                    frame_id=preview.id if preview else None,
+                    timestamp=midpoint,
+                    frame_url=preview.frame_url if preview else None,
+                    caption_text=caption.text,
+                    start_time=caption.start_time,
+                    end_time=caption.end_time,
+                )
+            )
 
     return results
 
@@ -169,7 +196,6 @@ async def search_by_text(request: Request, body: TextSearchRequest) -> SearchRes
 
     top_k = _effective_top_k(body.top_k)
     vector_type_filter = body.vector_type
-    faiss_k = _faiss_top_k(top_k, vector_type_filter)
     embedder: EmbedderClient = request.app.state.embedder
     indexer: IndexerClient = request.app.state.indexer
     supabase: SupabaseDB = request.app.state.supabase
@@ -184,7 +210,11 @@ async def search_by_text(request: Request, body: TextSearchRequest) -> SearchRes
         ) from None
 
     try:
-        hits = await indexer.search_vectors(embedding, faiss_k)
+        hits = await indexer.search_vectors(
+            embedding,
+            top_k,
+            vector_type=vector_type_filter,
+        )
     except httpx.HTTPError:
         logger.exception("Indexer search failed")
         raise HTTPException(
@@ -195,8 +225,6 @@ async def search_by_text(request: Request, body: TextSearchRequest) -> SearchRes
     results = await _join_faiss_hits_to_results(
         supabase, hits, vector_type_filter=vector_type_filter
     )
-    if vector_type_filter is not None:
-        results = results[:top_k]
     try:
         await supabase.insert_search_query(
             SearchQueryCreate(query_type=QueryType.TEXT, query_text=text)

@@ -8,39 +8,46 @@ from typing import List, Tuple
 import faiss
 import numpy as np
 
-from exports.schema.constants import CLIP_DIMENSION, FAISS_INDEX_PATH
+from exports.schema.constants import CLIP_DIMENSION, FAISS_INDEX_PATH, VectorType
+
+
+_INDEX_FILENAMES: dict[VectorType, str] = {
+    VectorType.IMAGE: "image.index",
+    VectorType.TEXT: "transcript.index",
+    VectorType.CAPTION: "caption.index",
+}
+
+
+def faiss_index_dir() -> str:
+    """Directory holding per-modality FAISS index files."""
+    path = str(FAISS_INDEX_PATH or "").strip()
+    if not path:
+        return ""
+    # Legacy single-file paths (embeddings.faiss, vectors.index, …) → parent dir.
+    if path.endswith((".index", ".faiss")):
+        return os.path.dirname(os.path.abspath(path)) or "."
+    return os.path.abspath(path)
 
 
 class FaissVectorStore:
     """Exact inner-product search on L2-normalized CLIP vectors."""
 
-    def __init__(self) -> None:
-        self._path = FAISS_INDEX_PATH
-        self._dimension = CLIP_DIMENSION
+    def __init__(self, path: str, *, dimension: int = CLIP_DIMENSION) -> None:
+        self._path = path
+        self._dimension = dimension
         self._index: faiss.Index | None = None
 
     @property
     def path(self) -> str:
-        """
-        Returns:
-            str: Path to the FAISS index file
-        """
         return self._path
 
     @property
     def ntotal(self) -> int:
-        """
-        Returns:
-            int: Number of vectors in the index
-        """
         if self._index is None:
             return 0
         return int(self._index.ntotal)
 
     def load(self) -> None:
-        """
-        Load the FAISS index from the file system.
-        """
         _ensure_parent_dir(self._path)
         if os.path.exists(self._path):
             self._index = faiss.read_index(self._path)
@@ -54,12 +61,6 @@ class FaissVectorStore:
             self._index = faiss.IndexFlatIP(self._dimension)
 
     def add(self, vectors: np.ndarray) -> List[int]:
-        """
-        Append rows to the FAISS index.
-        vectors: numpy array of vectors to add to the index
-        Returns:
-            List[int]: List of new faiss_index_id values in row order
-        """
         if self._index is None:
             raise RuntimeError("FAISS index is not loaded.")
         if vectors.ndim != 2 or vectors.shape[1] != self._dimension:
@@ -74,12 +75,6 @@ class FaissVectorStore:
         return list[int](range(start, start + n))
 
     def search(self, query: np.ndarray, top_k: int) -> List[Tuple[int, float]]:
-        """
-        query: embedding vector to search for in the index
-        top_k: number of nearest neighbors to return
-        Returns:
-            List[Tuple[int, float]]: List of tuples containing the index of the nearest neighbor and the similarity score
-        """
         if self._index is None:
             raise RuntimeError("FAISS index is not loaded.")
         if int(self._index.ntotal) == 0:
@@ -104,20 +99,66 @@ class FaissVectorStore:
         return out
 
     def save(self) -> None:
-        """
-        Save the FAISS index to the file system.
-        """
         if self._index is None:
             return
         _ensure_parent_dir(self._path)
         faiss.write_index(self._index, self._path)
 
 
+class FaissIndexRegistry:
+    """One FAISS index per vector type (image, transcript, caption)."""
+
+    def __init__(self, base_dir: str, *, dimension: int = CLIP_DIMENSION) -> None:
+        self._base_dir = base_dir
+        self._stores: dict[VectorType, FaissVectorStore] = {
+            vector_type: FaissVectorStore(
+                os.path.join(base_dir, filename),
+                dimension=dimension,
+            )
+            for vector_type, filename in _INDEX_FILENAMES.items()
+        }
+
+    @property
+    def base_dir(self) -> str:
+        return self._base_dir
+
+    def store_for(self, vector_type: VectorType) -> FaissVectorStore:
+        return self._stores[vector_type]
+
+    @property
+    def ntotal(self) -> int:
+        return sum(store.ntotal for store in self._stores.values())
+
+    def load(self) -> None:
+        os.makedirs(self._base_dir, exist_ok=True)
+        for store in self._stores.values():
+            store.load()
+
+    def save(self) -> None:
+        for store in self._stores.values():
+            store.save()
+
+    def add(self, vector_type: VectorType, vectors: np.ndarray) -> List[int]:
+        return self._stores[vector_type].add(vectors)
+
+    def search(
+        self, vector_type: VectorType, query: np.ndarray, top_k: int
+    ) -> List[Tuple[int, float]]:
+        return self._stores[vector_type].search(query, top_k)
+
+    def search_all(
+        self, query: np.ndarray, top_k: int
+    ) -> List[Tuple[VectorType, int, float]]:
+        """Query every index with ``top_k`` neighbours each, merge by score."""
+        merged: List[Tuple[VectorType, int, float]] = []
+        for vector_type, store in self._stores.items():
+            for faiss_index_id, score in store.search(query, top_k):
+                merged.append((vector_type, faiss_index_id, score))
+        merged.sort(key=lambda row: row[2], reverse=True)
+        return merged[:top_k]
+
+
 def _ensure_parent_dir(path: str) -> None:
-    """
-    Ensure the parent directory of the FAISS index file exists.
-    path: path to the FAISS index file
-    """
     parent = os.path.dirname(os.path.abspath(path))
     if parent:
         os.makedirs(parent, exist_ok=True)
