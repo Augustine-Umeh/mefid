@@ -12,6 +12,19 @@ class UploadResponse(BaseModel):
     status: str = "uploaded"
 
 
+class SignalMatch(BaseModel):
+    """One contributing signal inside a fused search moment."""
+    vector_type: VectorType
+    similarity: float
+    timestamp: float
+    frame_id: Optional[UUID] = None
+    frame_url: Optional[str] = None
+    transcript_text: Optional[str] = None
+    caption_text: Optional[str] = None
+    start_time: Optional[float] = None
+    end_time: Optional[float] = None
+
+
 class SearchResult(BaseModel):
     """One row in a search result set, joining FAISS hits to media + frames/transcripts/captions."""
     media_id: UUID
@@ -19,6 +32,9 @@ class SearchResult(BaseModel):
     media_type: MediaType
     file_name: str
     file_url: str
+    signal_types: List[VectorType] = []
+    signal_count: int = 0
+    signals: List[SignalMatch] = []
     vector_type: VectorType = VectorType.IMAGE
     frame_id: Optional[UUID] = None
     timestamp: Optional[float] = None

@@ -1,1 +1,1 @@
-from .responses import UploadResponse, SearchResult, SearchResponse
+from .responses import UploadResponse, SearchResult, SearchResponse, SignalMatch

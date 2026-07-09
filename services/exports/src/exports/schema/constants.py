@@ -126,6 +126,15 @@ DEFAULT_TOP_K: int = _get_int("DEFAULT_TOP_K", 25)
 # candidates before filtering so image hits are not crowded out by transcripts.
 FILTERED_SEARCH_MAX_K: int = _get_int("FILTERED_SEARCH_MAX_K", 500)
 
+# Temporal signal fusion (Step 5 text search)
+FUSION_PRIMARY_CANDIDATES: int = _get_int("FUSION_PRIMARY_CANDIDATES", 20)
+FUSION_SECONDARY_CANDIDATES: int = _get_int("FUSION_SECONDARY_CANDIDATES", 5)
+FUSION_FRAME_PROXIMITY: float = _get_float("FUSION_FRAME_PROXIMITY", 1.0)
+FUSION_TRANSCRIPT_PROXIMITY: float = _get_float("FUSION_TRANSCRIPT_PROXIMITY", 6.0)
+FUSION_INTERSECTION_MULTIPLIER_1: float = _get_float("FUSION_INTERSECTION_MULTIPLIER_1", 1.0)
+FUSION_INTERSECTION_MULTIPLIER_2: float = _get_float("FUSION_INTERSECTION_MULTIPLIER_2", 1.3)
+FUSION_INTERSECTION_MULTIPLIER_3: float = _get_float("FUSION_INTERSECTION_MULTIPLIER_3", 1.6)
+
 # -----------------------------
 # Embedding model (embedder service)
 # -----------------------------
