@@ -7,6 +7,7 @@ Tables (see `dev_schema.sql`):
     transcripts    — Whisper transcript segments
     captions       — visual caption windows (uniform 1fps pass; not CLIP frames)
     search_queries — query log (defined; not yet wired)
+    incidents      — reliability-agent escalation rows
 
 All UUIDs are passed/stored as strings (`mode="json"` on dump). Enums
 serialize to their string values for the same reason.
@@ -25,6 +26,9 @@ from exports.schema.models import (
     EmbeddingRow,
     FrameCreate,
     FrameRow,
+    IncidentCreate,
+    IncidentRow,
+    IncidentUpdate,
     MediaCreate,
     MediaRow,
     MediaUpdate,
@@ -311,6 +315,33 @@ class SupabaseDB:
         payload = query.model_dump(mode="json", exclude_none=True)
         response = await self.client.table("search_queries").insert(payload).execute()
         return _parse_row(SearchQueryRow, response.data[0])
+
+    # ===================== Incidents =====================
+    async def get_incident_by_id(self, incident_id: IdLike) -> Optional[IncidentRow]:
+        response = (
+            await self.client.table("incidents")
+            .select("*")
+            .eq("id", _id(incident_id))
+            .execute()
+        )
+        return _parse_row(IncidentRow, response.data[0]) if response.data else None
+
+    async def insert_incident(self, incident: IncidentCreate) -> IncidentRow:
+        payload = incident.model_dump(mode="json", exclude_none=True)
+        response = await self.client.table("incidents").insert(payload).execute()
+        return _parse_row(IncidentRow, response.data[0])
+
+    async def update_incident(
+        self, incident_id: IdLike, update: IncidentUpdate
+    ) -> IncidentRow:
+        payload = update.model_dump(mode="json", exclude_none=True)
+        response = (
+            await self.client.table("incidents")
+            .update(payload)
+            .eq("id", _id(incident_id))
+            .execute()
+        )
+        return _parse_row(IncidentRow, response.data[0])
 
     # ===================== Cleanup =====================
     async def close(self):

@@ -262,6 +262,7 @@ async def upload_video(
 
 
 async def _try_mark_failed(supabase: SupabaseDB, media_id: str | None) -> None:
+    """Best-effort flip of media status to failed after a pipeline error."""
     if media_id is None:
         return
     try:

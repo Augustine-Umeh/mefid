@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from exports.db_clients.lifespan import lifespan
 from .routes.add import router as add_router
 from .routes.search import router as search_router
+from .routes.stats import router as stats_router
 
 app = FastAPI(
     title="Mefid Indexer Service",
@@ -16,6 +17,7 @@ app = FastAPI(
 # -------------------------------
 app.include_router(add_router, prefix="/vectors/add", tags=["Add Vectors"])
 app.include_router(search_router, prefix="/vectors/search", tags=["Search Vectors"])
+app.include_router(stats_router, prefix="/index", tags=["Health"])
 
 # -------------------------------
 # Root Route

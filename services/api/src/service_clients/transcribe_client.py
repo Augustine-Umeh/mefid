@@ -57,3 +57,11 @@ class TranscribeClient:
         response = await self.client.get("/")
         response.raise_for_status()
         return response.json()
+
+    async def get_ready(self) -> dict:
+        if not self.client:
+            raise RuntimeError("HTTP client is not initialized.")
+
+        response = await self.client.get("/ready")
+        response.raise_for_status()
+        return response.json()

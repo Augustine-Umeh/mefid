@@ -78,14 +78,14 @@ services:
         volumes:
             - ./services/embedder/src:/app/src  # Hot reload
             - embedder_cache:/app/model_cache  # Persist model cache
-        # GPU support
-        deploy:
-          resources:
-            reservations:
-              devices:
-                - driver: nvidia
-                  count: 1
-                  capabilities: [gpu]
+        # GPU (Linux + NVIDIA only — comment in on Mac / Docker Desktop):
+        # deploy:
+        #   resources:
+        #     reservations:
+        #       devices:
+        #         - driver: nvidia
+        #           count: 1
+        #           capabilities: [gpu]
         networks:
             - mefid-network
 
@@ -140,13 +140,14 @@ services:
         volumes:
             - ./services/caption/src:/app/src
             - caption_cache:/app/model_cache
-        deploy:
-            resources:
-                reservations:
-                    devices:
-                        - driver: nvidia
-                          count: 1
-                          capabilities: [gpu]
+        # GPU (Linux + NVIDIA only — comment in on Mac / Docker Desktop):
+        # deploy:
+        #     resources:
+        #         reservations:
+        #             devices:
+        #                 - driver: nvidia
+        #                   count: 1
+        #                   capabilities: [gpu]
         networks:
             - mefid-network
 

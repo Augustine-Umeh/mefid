@@ -48,6 +48,14 @@ class QueryType(str, Enum):
     MULTIMODAL = "multimodal"
 
 
+class IncidentStatus(str, Enum):
+    """Postgres `incident_status` enum — reliability-agent incident lifecycle."""
+    OPEN = "open"
+    PROCESSING = "processing"
+    RESOLVED = "resolved"
+    ESCALATED = "escalated"
+
+
 load_dotenv()
 
 

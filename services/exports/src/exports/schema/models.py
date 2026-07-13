@@ -14,7 +14,7 @@ attribute name here uses the same spelling.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 from .constants import (
     ContentType,
     ExtractionStrategy,
+    IncidentStatus,
     MediaStatus,
     MediaType,
     QueryType,
@@ -96,6 +97,20 @@ class SearchQueryRow(BaseModel):
     created_at: datetime
 
 
+class IncidentRow(BaseModel):
+    """Row in `public.incidents` — reliability-agent escalation."""
+    id: UUID
+    created_at: datetime
+    status: IncidentStatus
+    failure_id: str
+    diagnosis: str
+    service: Optional[str] = None
+    stage: Optional[str] = None
+    media_id: Optional[UUID] = None
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 # ============================================================
 # Create / Update models (writes)
 # ============================================================
@@ -162,6 +177,25 @@ class CaptionCreate(BaseModel):
 class SearchQueryCreate(BaseModel):
     query_type: QueryType
     query_text: Optional[str] = None
+
+
+class IncidentCreate(BaseModel):
+    """Insert payload for `public.incidents` (Mefid emit path)."""
+    failure_id: str
+    diagnosis: str
+    service: Optional[str] = None
+    stage: Optional[str] = None
+    media_id: Optional[UUID] = None
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    status: IncidentStatus = IncidentStatus.OPEN
+
+
+class IncidentUpdate(BaseModel):
+    """Partial update for an incident (agent mutate path)."""
+    status: Optional[IncidentStatus] = None
+    metadata: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
 
 
 # ============================================================

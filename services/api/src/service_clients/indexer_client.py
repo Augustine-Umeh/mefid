@@ -97,3 +97,11 @@ class IndexerClient:
         response = await self.client.get("/")
         response.raise_for_status()
         return response.json()
+
+    async def get_index_stats(self) -> dict:
+        if not self.client:
+            raise RuntimeError("HTTP client is not initialized.")
+
+        response = await self.client.get("/index/stats")
+        response.raise_for_status()
+        return response.json()

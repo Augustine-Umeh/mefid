@@ -7,6 +7,7 @@ from exports.db_clients.lifespan import lifespan as shared_lifespan
 from exports.utils.logger import get_logger
 
 from .routes.transcribe import router as transcribe_router
+from .routes.ready import router as ready_router
 from .whisper_service import WhisperEngine
 
 logger = get_logger()
@@ -38,6 +39,7 @@ app = FastAPI(
 )
 
 app.include_router(transcribe_router, prefix="/transcribe", tags=["Transcribe"])
+app.include_router(ready_router, tags=["Health"])
 
 
 @app.get("/")

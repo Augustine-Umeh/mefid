@@ -1,87 +1,119 @@
-from fastapi import APIRouter
-from service_clients.embedder_client import EmbedderClient
-from service_clients.indexer_client import IndexerClient
-from service_clients.media_processor_client import MediaProcessorClient
-from service_clients.transcribe_client import TranscribeClient
-from service_clients.caption_client import CaptionClient
+from fastapi import APIRouter, Request
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
+def _live_entry(*, live: bool, error: str | None = None, **extra) -> dict:
+    entry: dict = {"live": live, **extra}
+    if error:
+        entry["error"] = error
+    return entry
+
+
+def _service_status(live: bool, ready: bool | None = None) -> str:
+    if not live:
+        return "unhealthy"
+    if ready is False:
+        return "degraded"
+    return "healthy"
+
+
 @router.get("/")
 async def health_check():
-    """Check health of API service"""
+    """Check health of API service."""
     return {
         "status": "healthy",
-        "service": "api"
+        "service": "api",
+        "live": True,
     }
 
 
 @router.get("/all")
-async def health_check_all():
-    """Check health of all services"""
-    
-    services = {
-        "api": {"status": "healthy"},
-        "media_processor": {"status": "unknown"},
-        "embedder": {"status": "unknown"},
-        "indexer": {"status": "unknown"},
-        "transcribe": {"status": "unknown"},
-        "caption": {"status": "unknown"},
+async def health_check_all(request: Request):
+    """Liveness and readiness for all Mefid services."""
+    media_processor = request.app.state.media_processor
+    embedder = request.app.state.embedder
+    indexer = request.app.state.indexer
+    transcribe = request.app.state.transcribe
+    caption = request.app.state.caption
+
+    services: dict[str, dict] = {
+        "api": {"live": True, "ready": True, "status": "healthy"},
+        "media_processor": {"live": False, "ready": None, "status": "unknown"},
+        "embedder": {"live": False, "ready": None, "status": "unknown"},
+        "indexer": {"live": False, "ready": None, "status": "unknown"},
+        "transcribe": {"live": False, "ready": None, "status": "unknown"},
+        "caption": {"live": False, "ready": None, "status": "unknown"},
     }
-    
-    # Check Media Processor
-    try:
-        async with MediaProcessorClient() as client:
-            await client.health_check()
-            services["media_processor"]["status"] = "healthy"
-    except Exception as e:
-        services["media_processor"]["status"] = "unhealthy"
-        services["media_processor"]["error"] = str(e)
-    
-    # Check Embedder
-    try:
-        async with EmbedderClient() as client:
-            await client.health_check()
-            services["embedder"]["status"] = "healthy"
-    except Exception as e:
-        services["embedder"]["status"] = "unhealthy"
-        services["embedder"]["error"] = str(e)
-    
-    # Check Indexer
-    try:
-        async with IndexerClient() as client:
-            await client.health_check()
-            services["indexer"]["status"] = "healthy"
-    except Exception as e:
-        services["indexer"]["status"] = "unhealthy"
-        services["indexer"]["error"] = str(e)
 
-    # Check Transcribe
     try:
-        async with TranscribeClient() as client:
-            await client.health_check()
-            services["transcribe"]["status"] = "healthy"
-    except Exception as e:
-        services["transcribe"]["status"] = "unhealthy"
-        services["transcribe"]["error"] = str(e)
+        await media_processor.health_check()
+        services["media_processor"] = _live_entry(live=True, ready=True)
+    except Exception as exc:
+        services["media_processor"] = _live_entry(live=False, error=str(exc))
 
-    # Check Caption
     try:
-        async with CaptionClient() as client:
-            await client.health_check()
-            services["caption"]["status"] = "healthy"
-    except Exception as e:
-        services["caption"]["status"] = "unhealthy"
-        services["caption"]["error"] = str(e)
+        ready_payload = await embedder.get_ready()
+        services["embedder"] = _live_entry(
+            live=True,
+            ready=bool(ready_payload.get("model_loaded")),
+            model_loaded=ready_payload.get("model_loaded"),
+            model_name=ready_payload.get("model_name"),
+        )
+    except Exception as exc:
+        services["embedder"] = _live_entry(live=False, error=str(exc))
 
-    # Overall status
-    all_healthy = all(
-        svc["status"] == "healthy" 
-        for svc in services.values()
-    )
-    
+    try:
+        stats = await indexer.get_index_stats()
+        services["indexer"] = _live_entry(
+            live=True,
+            ready=bool(stats.get("index_loaded")),
+            index_loaded=stats.get("index_loaded"),
+            ntotal=stats.get("ntotal"),
+            ntotal_sum=stats.get("ntotal_sum"),
+            max_id=stats.get("max_id"),
+            disk_ntotal=stats.get("disk_ntotal"),
+            memory_disk_drift=stats.get("memory_disk_drift"),
+        )
+    except Exception as exc:
+        services["indexer"] = _live_entry(live=False, error=str(exc))
+
+    try:
+        ready_payload = await transcribe.get_ready()
+        services["transcribe"] = _live_entry(
+            live=True,
+            ready=bool(ready_payload.get("model_loaded")),
+            model_loaded=ready_payload.get("model_loaded"),
+            model_name=ready_payload.get("model_name"),
+        )
+    except Exception as exc:
+        services["transcribe"] = _live_entry(live=False, error=str(exc))
+
+    try:
+        await caption.health_check()
+        services["caption"] = _live_entry(live=True, ready=True)
+    except Exception as exc:
+        services["caption"] = _live_entry(live=False, error=str(exc))
+
+    for name, entry in services.items():
+        if name == "api":
+            continue
+        live = bool(entry.get("live"))
+        ready = entry.get("ready")
+        ready_bool = ready if isinstance(ready, bool) else None
+        entry["status"] = _service_status(live, ready_bool)
+
+    all_healthy = all(svc.get("status") == "healthy" for svc in services.values())
+    any_unhealthy = any(svc.get("status") == "unhealthy" for svc in services.values())
+
+    if all_healthy:
+        overall = "healthy"
+    elif any_unhealthy:
+        overall = "degraded"
+    else:
+        overall = "degraded"
+
     return {
-        "status": "healthy" if all_healthy else "degraded",
-        "services": services
+        "status": overall,
+        "services": services,
     }
